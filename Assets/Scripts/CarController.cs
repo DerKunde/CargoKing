@@ -6,10 +6,9 @@ public class CarController : MonoBehaviour
     public Transform frontLeftWheel;
     public Transform frontRightWheel;
 
-    void Update()
+    void FixedUpdate()
     {
         var keyboard = Keyboard.current;
-
         if(keyboard == null)
         {
             return;
@@ -44,5 +43,18 @@ public class CarController : MonoBehaviour
             frontLeftWheel.localEulerAngles = new Vector3(0,0,0);
             frontRightWheel.localEulerAngles = new Vector3(0,0,0);
         }
+
+        if (keyboard.rKey.isPressed)
+        {
+            ResetCar();
+        }
+    }
+
+    private void ResetCar()
+    {
+        transform.Translate(0, 0.3f, 0);
+        Vector3 currentEuler = transform.localEulerAngles;
+        currentEuler.z = 0f;
+        transform.localEulerAngles = currentEuler;
     }
 }
