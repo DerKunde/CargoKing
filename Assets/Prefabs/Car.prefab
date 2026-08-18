@@ -361,8 +361,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Suspension
   carBody: {fileID: 9042607213811985471}
-  springStrength: 300
-  damping: 25
+  springStrength: 60
+  damping: 5
   tireGripFactor: 0.75
   powerScale: 10
   brakingPower: 10
@@ -531,8 +531,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Suspension
   carBody: {fileID: 9042607213811985471}
-  springStrength: 300
-  damping: 25
+  springStrength: 60
+  damping: 5
   tireGripFactor: 0.75
   powerScale: 10
   brakingPower: 10
@@ -723,8 +723,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Suspension
   carBody: {fileID: 9042607213811985471}
-  springStrength: 300
-  damping: 25
+  springStrength: 60
+  damping: 5
   tireGripFactor: 0.75
   powerScale: 10
   brakingPower: 10
@@ -803,8 +803,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Suspension
   carBody: {fileID: 9042607213811985471}
-  springStrength: 300
-  damping: 25
+  springStrength: 60
+  damping: 5
   tireGripFactor: 0.75
   powerScale: 10
   brakingPower: 10
