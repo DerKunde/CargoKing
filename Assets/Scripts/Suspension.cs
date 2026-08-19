@@ -27,6 +27,9 @@ public class Suspension : MonoBehaviour
     public Vector3 tireWorldVelocity;
     public Vector3 tireSlip;
 
+    public AnimationCurve torqueCurve;
+    public AnimationCurve gasPadelCurve;
+
     void Awake()
     {
         if (wheelMesh != null)

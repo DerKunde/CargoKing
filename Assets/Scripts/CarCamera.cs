@@ -7,7 +7,6 @@ using UnityEngine.UIElements;
 public class CarCamera : MonoBehaviour
 {
     [Header("Setup")]
-    [SerializeField]
     private Transform cameraTransform;
     [SerializeField]
     private Transform carTransform;
@@ -25,6 +24,7 @@ public class CarCamera : MonoBehaviour
     void Awake()
     {
         currentYRotation = carTransform.eulerAngles.y;
+        cameraTransform = Camera.main.transform;
     }
 
     private void LateUpdate()

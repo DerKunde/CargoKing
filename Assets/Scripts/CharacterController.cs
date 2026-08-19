@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -11,7 +10,7 @@ public class CharacterController : MonoBehaviour
     public float RideSpringStrength = 5f;
     public float RideSpringDamper = 1.5f;
 
-    public Vector3 _uprightJointTargetRot;
+    public Vector3 _uprightJointTargetRot = new Vector3(0f, 0f, 0f);
 
     private Rigidbody _RB;
 
@@ -26,14 +25,12 @@ public class CharacterController : MonoBehaviour
     {
         var keyboard = Keyboard.current;
         characterCamera.transform.LookAt(characterModel.position);
-        //characterCamera.transform.position = new Vector3(characterModel.position.x, characterModel.position.y + 2.5f, characterModel.position.z -4f);
         if(keyboard == null)
         {
             return;
         }
 
         HandleMovement(keyboard, Mouse.current);
-
 
         Vector3 rayOrigin = transform.position;
         Vector3 rayDirection = -transform.up;
@@ -59,6 +56,8 @@ public class CharacterController : MonoBehaviour
             float x = hit.distance - RideHeight;
 
             float springForce = (x * RideSpringStrength) - (relVel * RideSpringDamper);
+
+            Debug.DrawLine(transform.position, transform.position + (rayDir * springForce), Color.yellow);
 
             _RB.AddForce(rayDir * springForce);
             if(hitBody != null)

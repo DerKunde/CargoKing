@@ -374,6 +374,18 @@ MonoBehaviour:
   steeringDirection: {x: 0, y: 0, z: 0}
   tireWorldVelocity: {x: 0, y: 0, z: 0}
   tireSlip: {x: 0, y: 0, z: 0}
+  torqueCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  gasPadelCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!114 &4472778694931729082
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -544,6 +556,18 @@ MonoBehaviour:
   steeringDirection: {x: 0, y: 0, z: 0}
   tireWorldVelocity: {x: 0, y: 0, z: 0}
   tireSlip: {x: 0, y: 0, z: 0}
+  torqueCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  gasPadelCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!114 &3468881941568345983
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -736,6 +760,18 @@ MonoBehaviour:
   steeringDirection: {x: 0, y: 0, z: 0}
   tireWorldVelocity: {x: 0, y: 0, z: 0}
   tireSlip: {x: 0, y: 0, z: 0}
+  torqueCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  gasPadelCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!114 &7763776770811258194
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -816,6 +852,18 @@ MonoBehaviour:
   steeringDirection: {x: 0, y: 0, z: 0}
   tireWorldVelocity: {x: 0, y: 0, z: 0}
   tireSlip: {x: 0, y: 0, z: 0}
+  torqueCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  gasPadelCurve:
+    serializedVersion: 2
+    m_Curve: []
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
 --- !u!114 &431906813773034094
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1027,6 +1075,8 @@ GameObject:
   - component: {fileID: 1766786146544871906}
   - component: {fileID: 9042607213811985471}
   - component: {fileID: 1535265798722219626}
+  - component: {fileID: 1096722916932916270}
+  - component: {fileID: 4149527742884762008}
   m_Layer: 0
   m_Name: Car
   m_TagString: Untagged
@@ -1095,5 +1145,172 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f740fc0d7e453c745b238dde92881da2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarController
+  carBody: {fileID: 9042607213811985471}
+  carEngine: {fileID: 4149527742884762008}
   frontLeftWheel: {fileID: 2351832611262533219}
   frontRightWheel: {fileID: 4700865722042933887}
+  rearLeftWheel: {fileID: 7067285985409199118}
+  rearRightWheel: {fileID: 6322197104759029723}
+  maxSteerAngle: 25
+  steeringInputCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.5
+      value: 1
+      inSlope: 0.0084818
+      outSlope: 0.0084818
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.9981095
+      value: 1.0021164
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+--- !u!114 &1096722916932916270
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9167623651113462473}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 51c24130371b21f45a56838b00d68195, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarCamera
+  carTransform: {fileID: 1766786146544871906}
+  distance: 6.68
+  height: 36.19
+  smoothingSpeed: 0.8
+--- !u!114 &4149527742884762008
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9167623651113462473}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: accd15ddb1c08e74fafb3ef61244cebf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarEngine
+  torqueCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0.099996746
+      value: 0.0030287579
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.17519832
+      value: 0.07592127
+      inSlope: 0.52725327
+      outSlope: 0.52725327
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.29963887
+      value: 0.10829072
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.5045734
+      value: 0.08322695
+      inSlope: -0.12462641
+      outSlope: -0.12462641
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.60068196
+      value: 0.0707728
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  gasPadleCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: -2.3283064e-10
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.3
+      value: 0.99999696
+      inSlope: 0.004223195
+      outSlope: 0.004223195
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1.0007646
+      value: 1.0010536
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  gears:
+  - 3.2
+  - 1.9
+  - 1.3
+  - 1
+  - 0.8
+  axleRatio: 4
+  efficiency: 0.85
+  tireRadius: 0.31
+  idleRevolutions: 1000
+  maxRevolutions: 6000
+  rpmChangeSpeed: 3000
+  revolutionsPerMinute: 0
+  speedInMS: 0
+  calculatedTorque: 0
+  currentTimeOnPedle: 0
+  currentGear: 1

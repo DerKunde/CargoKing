@@ -96,13 +96,9 @@ public class VisualizeWheelForces : MonoBehaviour
         Gizmos.color = Color.magenta;
         Gizmos.DrawSphere(wheelOrigin.position, 0.05f);
         DrawSpringForce();
-        //DrawAccelerationForce();
-        //DrawGripForce();
-        //DrawTireWorldVelocity();
-        //DrawTireSteeringDirection();
-
-        DrawWheelForward();
-        DrawWheelBackward();
-        DrawWheelUp();
+        DrawAccelerationForce();
+        DrawGripForce();
+        DrawTireWorldVelocity();
+        DrawTireSteeringDirection();
     }
 }
