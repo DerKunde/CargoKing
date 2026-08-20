@@ -58,6 +58,7 @@ public class CarController : MonoBehaviour
         float forceInNewton = wheelTorque / carEngine.tireRadius;
         carBody.AddForceAtPosition(transform.forward * forceInNewton / 2, rearLeftWheel.position);
         carBody.AddForceAtPosition(transform.forward * forceInNewton / 2, rearRightWheel.position);
+        carEngine.speedInKmH = Vector3.Dot(carBody.linearVelocity, transform.forward) * 3.6f;
 
         bool isSteering = keyboard.aKey.isPressed || keyboard.dKey.isPressed;
         if (isSteering)

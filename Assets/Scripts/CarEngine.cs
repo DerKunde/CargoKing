@@ -22,14 +22,23 @@ public class CarEngine : MonoBehaviour
     // Motor auf dieser Drehzahl.
     public float launchRevolutions = 2000f;
 
+    [Header("Drehzahlbegrenzer")]
+    // Ueber diesen Bereich vor maxRevolutions wird das Moment ausgeblendet. Ohne
+    // Begrenzer bleibt das Moment oberhalb maxRevolutions auf dem Wert der Maximal-
+    // drehzahl stehen, statt wegzufallen - dann erreicht der KURZE Gang die hoechste
+    // Endgeschwindigkeit, weil er staerker uebersetzt. Genau verkehrt herum.
+    public float revLimiterFadeRange = 300f;
+
     [Header("Calculated Values !!! Do not change !!!")]
     public float revolutionsPerMinute;
-    public float speedInMS;
+    public float speedInKmH;
     public float calculatedTorque = 0f;
     public float currentTimeOnPedle = 0f;
     public int currentGear = 1;
     public bool isOnGasPadle = false;
     public bool isClutchSlipping = false;
+    public float gearboxRevolutions;
+    public float revLimiterFactor = 1f;
 
     public float CalculateRPM(float currentSpeedMS, int currentGear, bool throttleApplied)
     {
@@ -37,6 +46,12 @@ public class CarEngine : MonoBehaviour
 
         float tireRPM = (currentSpeedMS / tireCircumference) * 60;
         float calculatedRPM = tireRPM * axleRatio * gears[currentGear - 1];
+
+        // Ungeklemmt festhalten: der Begrenzer muss wissen, wie weit das Getriebe
+        // ueber die Maximaldrehzahl hinausdreht. Nach dem Clamp unten waere das nicht
+        // mehr erkennbar.
+        gearboxRevolutions = calculatedRPM;
+        revLimiterFactor = Mathf.Clamp01((maxRevolutions - calculatedRPM) / revLimiterFadeRange);
 
         // Kupplung: unterhalb der Anfahrdrehzahl zieht das Getriebe den Motor nicht
         // herunter. Sobald die Getriebedrehzahl die Anfahrdrehzahl ueberholt, greift
@@ -54,7 +69,7 @@ public class CarEngine : MonoBehaviour
     public float CalculateWheelTorque(float currentRPM, int currentGear, float gasPadleValue)
     {
         float maxPossibleTorque = GetMaxTorqueForRPM(currentRPM);
-        float currentTorque = maxPossibleTorque * gasPadleValue;
+        float currentTorque = maxPossibleTorque * gasPadleValue * revLimiterFactor;
 
         float wheelTorque = currentTorque * gears[currentGear - 1] * axleRatio * efficiency;
         return wheelTorque;
@@ -77,12 +92,17 @@ public class CarEngine : MonoBehaviour
 
     private void ChangeGear(GearChange direction)
     {
-        if(direction == GearChange.Up && currentGear + 1 < gears.Length)
+        // gears hat 5 Eintraege, currentGear ist 1-basiert: der hoechste gueltige Gang ist
+        // gears.Length. Mit "currentGear + 1 < gears.Length" war bei Gang 4 Schluss und
+        // der 5. Gang (0.8) unerreichbar.
+        if(direction == GearChange.Up && currentGear < gears.Length)
         {
             currentGear += 1;
         }
 
-        if(direction == GearChange.Down && currentGear - 1 > 1)
+        // Analog nach unten: "currentGear - 1 > 1" liess Gang 1 nach dem ersten
+        // Hochschalten nicht mehr zu.
+        if(direction == GearChange.Down && currentGear > 1)
         {
             currentGear -= 1;
         }
