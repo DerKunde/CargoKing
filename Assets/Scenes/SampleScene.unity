@@ -141,7 +141,7 @@ CapsuleCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
   m_Radius: 0.5
   m_Height: 1
@@ -677,7 +677,7 @@ CapsuleCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
   m_Radius: 0.5
   m_Height: 1
@@ -1084,13 +1084,29 @@ PrefabInstance:
       propertyPath: scale
       value: 0.5
       objectReference: {fileID: 0}
+    - target: {fileID: 431906813773034094, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: maxLength
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 431906813773034094, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: baseLength
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 431906813773034094, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: arrowHeadSize
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 431906813773034094, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: directionLength
+      value: 0.8
+      objectReference: {fileID: 0}
     - target: {fileID: 988707537457188354, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: damping
-      value: 15
+      value: 150
       objectReference: {fileID: 0}
     - target: {fileID: 988707537457188354, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: springStrength
-      value: 60
+      value: 600
       objectReference: {fileID: 0}
     - target: {fileID: 988707537457188354, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: groundMask.m_Bits
@@ -1144,17 +1160,21 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2193822081608420189, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.35
+      objectReference: {fileID: 0}
     - target: {fileID: 2907974912727067245, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: cfd1664a307b8da48981b531808bfbb3, type: 2}
     - target: {fileID: 2976401492509048879, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: damping
-      value: 15
+      value: 150
       objectReference: {fileID: 0}
     - target: {fileID: 2976401492509048879, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: springStrength
-      value: 60
+      value: 600
       objectReference: {fileID: 0}
     - target: {fileID: 2976401492509048879, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: groundMask.m_Bits
@@ -1168,17 +1188,53 @@ PrefabInstance:
       propertyPath: scale
       value: 0.5
       objectReference: {fileID: 0}
+    - target: {fileID: 3468881941568345983, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: maxLength
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 3468881941568345983, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: baseLength
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 3468881941568345983, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: arrowHeadSize
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3468881941568345983, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: directionLength
+      value: 0.8
+      objectReference: {fileID: 0}
     - target: {fileID: 4472778694931729082, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: scale
       value: 0.5
       objectReference: {fileID: 0}
+    - target: {fileID: 4472778694931729082, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: maxLength
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4472778694931729082, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: baseLength
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4472778694931729082, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: arrowHeadSize
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 4472778694931729082, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: directionLength
+      value: 0.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 5130134483991516422, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.35
+      objectReference: {fileID: 0}
     - target: {fileID: 6266409228257396957, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: damping
-      value: 15
+      value: 150
       objectReference: {fileID: 0}
     - target: {fileID: 6266409228257396957, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: springStrength
-      value: 60
+      value: 600
       objectReference: {fileID: 0}
     - target: {fileID: 6266409228257396957, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: groundMask.m_Bits
@@ -1230,11 +1286,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6459134920310415132, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: damping
-      value: 15
+      value: 150
       objectReference: {fileID: 0}
     - target: {fileID: 6459134920310415132, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: springStrength
-      value: 60
+      value: 600
       objectReference: {fileID: 0}
     - target: {fileID: 6459134920310415132, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: groundMask.m_Bits
@@ -1244,9 +1300,33 @@ PrefabInstance:
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
       objectReference: {fileID: 2100000, guid: cfd1664a307b8da48981b531808bfbb3, type: 2}
+    - target: {fileID: 6664363398392172587, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.35
+      objectReference: {fileID: 0}
+    - target: {fileID: 7222032843604420543, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: -0.35
+      objectReference: {fileID: 0}
     - target: {fileID: 7763776770811258194, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: scale
       value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 7763776770811258194, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: maxLength
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7763776770811258194, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: baseLength
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 7763776770811258194, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: arrowHeadSize
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7763776770811258194, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: directionLength
+      value: 0.8
       objectReference: {fileID: 0}
     - target: {fileID: 7954019899132563931, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
@@ -1254,7 +1334,7 @@ PrefabInstance:
       objectReference: {fileID: 2100000, guid: cfd1664a307b8da48981b531808bfbb3, type: 2}
     - target: {fileID: 9042607213811985471, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: m_Mass
-      value: 8
+      value: 80
       objectReference: {fileID: 0}
     - target: {fileID: 9042607213811985471, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: m_Interpolate
@@ -1311,7 +1391,7 @@ CapsuleCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
   m_Radius: 0.5
   m_Height: 1
@@ -1565,7 +1645,7 @@ CapsuleCollider:
   m_LayerOverridePriority: 0
   m_IsTrigger: 0
   m_ProvidesContacts: 0
-  m_Enabled: 1
+  m_Enabled: 0
   serializedVersion: 2
   m_Radius: 0.5
   m_Height: 1

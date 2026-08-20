@@ -23,9 +23,47 @@ public class Suspension : MonoBehaviour
     float _lastForce;
 
     public Vector3 suspensionForce;
-    public Vector3 steeringDirection;
+    // Querachse des Reifens: die Drehachse des Rades (wheelMesh.up).
+    // Achse, keine Richtung - das Vorzeichen ist fuer die Kraftberechnung ohne Belang.
+    public Vector3 lateralAxis;
     public Vector3 tireWorldVelocity;
     public Vector3 tireSlip;
+
+    [Header("Debug / Visualisierung (nur Anzeige, keine Physik)")]
+    public Vector3 rollDirection;
+    public Vector3 tireRollForce;
+    public Vector3 tireForce;
+
+    public bool isGrounded;
+
+    // Angriffspunkte: genau die Positionen, die an AddForceAtPosition uebergeben werden,
+    // aber relativ zum Federbein gespeichert. Als Weltkoordinate eingefroren wuerden sie
+    // einen Physikschritt hinterherhaengen: FixedUpdate laeuft vor dem Solver, gezeichnet
+    // wird gegen die Pose danach.
+    private Vector3 _suspensionForcePointLocal;
+    private Vector3 _tireForcePointLocal;
+    private Vector3 _contactPointLocal;
+
+    public Vector3 suspensionForcePoint => transform.TransformPoint(_suspensionForcePointLocal);
+    public Vector3 tireForcePoint => transform.TransformPoint(_tireForcePointLocal);
+    public Vector3 contactPoint => transform.TransformPoint(_contactPointLocal);
+
+    // Dasselbe Problem betrifft die Richtungen: die Vektoren unten sind Weltvektoren,
+    // eingefroren vor dem Solve. Beim Lenken und Wanken zeigen sie sonst einen Schritt
+    // zu spaet. _debugFrame haelt die Pose fest, in der sie geschrieben wurden.
+    private Quaternion _debugFrame = Quaternion.identity;
+
+    private Vector3 ToCurrentPose(Vector3 frozenWorldVector)
+    {
+        return transform.rotation * Quaternion.Inverse(_debugFrame) * frozenWorldVector;
+    }
+
+    public Vector3 displaySuspensionForce  => ToCurrentPose(suspensionForce);
+    public Vector3 displayLateralAxis => ToCurrentPose(lateralAxis);
+    public Vector3 displayRollDirection     => ToCurrentPose(rollDirection);
+    public Vector3 displayTireRollForce     => ToCurrentPose(tireRollForce);
+    public Vector3 displayTireSlipForce     => ToCurrentPose(tireSlip);
+    public Vector3 displayTireForce         => ToCurrentPose(tireForce);
 
     public AnimationCurve torqueCurve;
     public AnimationCurve gasPadelCurve;
@@ -56,10 +94,29 @@ public class Suspension : MonoBehaviour
 
             float force = CalculateSpringForce(offset, velocity);
 
-            carBody.AddForceAtPosition(transform.up * (float)force, transform.position);
+            isGrounded = true;
+            _contactPointLocal = transform.InverseTransformPoint(hit.point);
+
+            Vector3 springForcePoint = transform.position;
+            _suspensionForcePointLocal = transform.InverseTransformPoint(springForcePoint);
+            carBody.AddForceAtPosition(transform.up * (float)force, springForcePoint);
             wheelMesh.position = transform.position - transform.up * (hit.distance - wheelRadius);
 
-            carBody.AddForceAtPosition(CalculateSteeringAndGrip(), transform.position);
+            Vector3 gripForcePoint = wheelMesh.position;
+            _tireForcePointLocal = transform.InverseTransformPoint(gripForcePoint);
+            carBody.AddForceAtPosition(CalculateSteeringAndGrip(), gripForcePoint);
+
+            _debugFrame = transform.rotation;
+        }
+        else
+        {
+            // Rad in der Luft: Anzeige-Werte zuruecksetzen, sonst stehen alte Pfeile stehen.
+            isGrounded = false;
+            _debugFrame = transform.rotation;
+            suspensionForce = Vector3.zero;
+            tireSlip = Vector3.zero;
+            tireRollForce = Vector3.zero;
+            tireForce = Vector3.zero;
         }
     }
 
@@ -88,19 +145,26 @@ public class Suspension : MonoBehaviour
 
     private Vector3 CalculateSteeringAndGrip()
     {
-    steeringDirection = wheelMesh.up;
+    lateralAxis = wheelMesh.up;
+    rollDirection     = wheelMesh.forward;
     tireWorldVelocity = carBody.GetPointVelocity(transform.position);
 
-    float steeringValue        = Vector3.Dot(steeringDirection, tireWorldVelocity);
+    float steeringValue        = Vector3.Dot(lateralAxis, tireWorldVelocity);
     float desiredVelocityChange = -steeringValue * tireGripFactor;
     float desiredAcceleration   = desiredVelocityChange / Time.fixedDeltaTime;
 
-    float effMass = EffectiveMassAt(transform.position, steeringDirection);
-    return tireSlip = steeringDirection * (effMass * desiredAcceleration);
+    float effMass = EffectiveMassAt(transform.position, lateralAxis);
+    tireSlip = lateralAxis * (effMass * desiredAcceleration);
+
+    // Dieses Modell kennt nur die Seitenkraft: keine Rollkomponente, kein Grip-Clamp.
+    tireRollForce = Vector3.zero;
+    tireForce     = tireSlip + tireRollForce;
+
+    return tireSlip;
     }
 
     private float EffectiveMassAt(Vector3 point, Vector3 dir)
-{
+    {
     Vector3 r    = point - carBody.worldCenterOfMass;
     Vector3 rxd  = Vector3.Cross(r, dir);
 
@@ -111,11 +175,6 @@ public class Suspension : MonoBehaviour
 
     float angular = Vector3.Dot(rxd, tensorRot * scaled);
     return 1f / (1f / carBody.mass + angular);
-}
-
-    public void Acceleration()
-    {
-        carBody.AddForceAtPosition(transform.forward * powerScale, transform.position);
     }
 
     public void CalculateBraking()
