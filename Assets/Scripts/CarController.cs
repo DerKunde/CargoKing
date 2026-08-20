@@ -29,9 +29,9 @@ public class CarController : MonoBehaviour
         }
 
         float forwardSpeedMS = Vector3.Dot(carBody.linearVelocity, transform.forward);
-        float currentRPM = carEngine.CalculateRPM(forwardSpeedMS, carEngine.currentGear);
+        bool throttleApplied = keyboard.wKey.isPressed;
 
-        if (keyboard.wKey.isPressed)
+        if (throttleApplied)
         {
             currentTimeOnPedle += Time.fixedDeltaTime;
             currentTimeOnPedle = Mathf.Clamp(currentTimeOnPedle, 0f, 1f);
@@ -41,8 +41,11 @@ public class CarController : MonoBehaviour
             currentTimeOnPedle = 0f;
         }
 
+        // Erst nach dem Gas-Status: die Anfahrhilfe in CalculateRPM braucht ihn.
+        float currentRPM = carEngine.CalculateRPM(forwardSpeedMS, carEngine.currentGear, throttleApplied);
+
         float wheelTorque = 0f;
-        if (keyboard.wKey.isPressed)
+        if (throttleApplied)
         {
             wheelTorque = carEngine.CalculateWheelTorque(currentRPM, carEngine.currentGear, carEngine.CalculateGasInput(currentTimeOnPedle));
         }
@@ -53,8 +56,8 @@ public class CarController : MonoBehaviour
         }
 
         float forceInNewton = wheelTorque / carEngine.tireRadius;
-        carBody.AddForceAtPosition(transform.forward * forceInNewton * 0.01f, rearLeftWheel.position);
-        carBody.AddForceAtPosition(transform.forward * forceInNewton * 0.01f, rearRightWheel.position);
+        carBody.AddForceAtPosition(transform.forward * forceInNewton / 2, rearLeftWheel.position);
+        carBody.AddForceAtPosition(transform.forward * forceInNewton / 2, rearRightWheel.position);
 
         bool isSteering = keyboard.aKey.isPressed || keyboard.dKey.isPressed;
         if (isSteering)

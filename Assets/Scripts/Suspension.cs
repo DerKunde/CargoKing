@@ -13,6 +13,12 @@ public class Suspension : MonoBehaviour
     public float tireGripFactor = 0.9f;
     public float powerScale = 0.1f;
     public float brakingPower = 10f;
+
+    [Header("Rollwiderstand")]
+    // Realistischer Bereich fuer Reifen auf Asphalt. Bei 800 kg sind das rund 118 N
+    // Gesamtwiderstand - der Antrieb liefert im Leerlauf nur ~213 N, viel hoeher darf
+    // Crr also nicht werden, sonst kommt das Auto nicht vom Fleck.
+    public float rollingResistanceCoefficient = 0.015f;
     private float tireMass = 1f;
     private float wheelRadius = 0.1f;
     public LayerMask groundMask = ~0;
@@ -33,6 +39,12 @@ public class Suspension : MonoBehaviour
     public Vector3 rollDirection;
     public Vector3 tireRollForce;
     public Vector3 tireForce;
+
+    // Die beiden Obergrenzen des Rollwiderstands einzeln, damit im Gizmo sichtbar wird,
+    // welche gerade bindet: der Reibwert oder der Anti-Rueckwaerts-Clamp beim Anhalten.
+    public float rollResistanceLimit;
+    public float rollStopLimit;
+    public bool rollForceAtStopLimit;
 
     public bool isGrounded;
 
@@ -104,7 +116,7 @@ public class Suspension : MonoBehaviour
 
             Vector3 gripForcePoint = wheelMesh.position;
             _tireForcePointLocal = transform.InverseTransformPoint(gripForcePoint);
-            carBody.AddForceAtPosition(CalculateSteeringAndGrip(), gripForcePoint);
+            carBody.AddForceAtPosition(CalculateTireForces(gripForcePoint), gripForcePoint);
 
             _debugFrame = transform.rotation;
         }
@@ -117,6 +129,9 @@ public class Suspension : MonoBehaviour
             tireSlip = Vector3.zero;
             tireRollForce = Vector3.zero;
             tireForce = Vector3.zero;
+            rollResistanceLimit = 0f;
+            rollStopLimit = 0f;
+            rollForceAtStopLimit = false;
         }
     }
 
@@ -143,24 +158,48 @@ public class Suspension : MonoBehaviour
         return (offset * springStrength) - (velocity * damping);
     }
 
-    private Vector3 CalculateSteeringAndGrip()
+    // forcePoint ist der Punkt, an dem der Aufrufer die Kraft ansetzt. Geschwindigkeit
+    // und Effektivmasse MUESSEN am selben Punkt genommen werden, sonst passen Hebelarm
+    // und Kraft nicht zusammen und die Kompensation ist systematisch daneben.
+    private Vector3 CalculateTireForces(Vector3 forcePoint)
     {
     lateralAxis = wheelMesh.up;
     rollDirection     = wheelMesh.forward;
-    tireWorldVelocity = carBody.GetPointVelocity(transform.position);
+    tireWorldVelocity = carBody.GetPointVelocity(forcePoint);
 
     float steeringValue        = Vector3.Dot(lateralAxis, tireWorldVelocity);
     float desiredVelocityChange = -steeringValue * tireGripFactor;
     float desiredAcceleration   = desiredVelocityChange / Time.fixedDeltaTime;
 
-    float effMass = EffectiveMassAt(transform.position, lateralAxis);
+    float effMass = EffectiveMassAt(forcePoint, lateralAxis);
     tireSlip = lateralAxis * (effMass * desiredAcceleration);
 
-    // Dieses Modell kennt nur die Seitenkraft: keine Rollkomponente, kein Grip-Clamp.
-    tireRollForce = Vector3.zero;
+    // Rollwiderstand: konstante Kraft entgegen der Rollrichtung. Nur eine konstante
+    // Kraft bringt das Auto in endlicher Zeit zum Stehen - eine geschwindigkeits-
+    // proportionale Daempfung faellt mit v gegen Null und kriecht ewig weiter.
+    float forwardVel  = Vector3.Dot(rollDirection, tireWorldVelocity);
+    float normalForce = Mathf.Max(0f, suspensionForce.y);
+
+    // Anti-Rueckwaerts-Clamp: nie mehr Kraft als noetig, um forwardVel in diesem Schritt
+    // auf Null zu bringen. Ohne das schiebt der Rollwiderstand das stehende Auto
+    // rueckwaerts und es zittert um Null. Bei forwardVel == 0 wird stopForce == 0, damit
+    // spielt auch Mathf.Sign(0) == 1 keine Rolle mehr.
+    //
+    // Bezugsmasse ist tireMass (= carBody.mass / 4), NICHT EffectiveMassAt: hier wirken
+    // vier Raeder gleichzeitig auf denselben Koerper, jedes darf also nur seinen Anteil
+    // am Gesamtimpuls beanspruchen. Mit EffectiveMassAt (5.6 kg pro Rad bei 10 kg Auto)
+    // bremsen die vier zusammen mit dem 2.2-fachen des noetigen Impulses und das Auto
+    // schwingt um Null. Sind Raeder in der Luft, wird untersteuert geklemmt - unkritisch.
+    rollResistanceLimit  = rollingResistanceCoefficient * normalForce;
+    rollStopLimit        = Mathf.Abs(forwardVel) * tireMass / Time.fixedDeltaTime;
+    rollForceAtStopLimit = rollStopLimit < rollResistanceLimit;
+
+    float rollMagnitude = Mathf.Min(rollResistanceLimit, rollStopLimit);
+
+    tireRollForce = -Mathf.Sign(forwardVel) * rollDirection * rollMagnitude;
     tireForce     = tireSlip + tireRollForce;
 
-    return tireSlip;
+    return tireForce;
     }
 
     private float EffectiveMassAt(Vector3 point, Vector3 dir)

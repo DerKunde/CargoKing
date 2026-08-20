@@ -33,6 +33,9 @@ public class VisualizeWheelForces : MonoBehaviour
     public Color lateralAxisColor = Color.cyan;
     public Color rollDirectionColor = Color.blue;
     public Color tireRollForceColor = new Color(1f, 0.55f, 0.1f);
+    // Andere Farbe, solange nicht der Reibwert die Kraft begrenzt, sondern der
+    // Anti-Rueckwaerts-Clamp - also genau in den letzten Metern vor dem Stillstand.
+    public Color tireRollForceClampedColor = Color.yellow;
     public Color tireSlipForceColor = Color.red;
     public Color tireForceColor = Color.magenta;
     public Color contactPointColor = Color.yellow;
@@ -40,6 +43,8 @@ public class VisualizeWheelForces : MonoBehaviour
     [Header("Messwerte in N (nur Anzeige)")]
     public float springForceNewton;
     public float tireRollForceNewton;
+    public float rollResistanceLimitNewton;
+    public float rollStopLimitNewton;
     public float tireSlipForceNewton;
     public float tireForceNewton;
 
@@ -64,6 +69,8 @@ public class VisualizeWheelForces : MonoBehaviour
 
         springForceNewton = suspension.suspensionForce.magnitude;
         tireRollForceNewton = suspension.tireRollForce.magnitude;
+        rollResistanceLimitNewton = suspension.rollResistanceLimit;
+        rollStopLimitNewton = suspension.rollStopLimit;
         tireSlipForceNewton = suspension.tireSlip.magnitude;
         tireForceNewton = suspension.tireForce.magnitude;
 
@@ -85,7 +92,8 @@ public class VisualizeWheelForces : MonoBehaviour
 
         if (showTireRollForce)
         {
-            DrawForce(suspension.tireForcePoint, suspension.displayTireRollForce, tireRollForceColor);
+            DrawForce(suspension.tireForcePoint, suspension.displayTireRollForce,
+                suspension.rollForceAtStopLimit ? tireRollForceClampedColor : tireRollForceColor);
         }
 
         if (showTireSlipForce)

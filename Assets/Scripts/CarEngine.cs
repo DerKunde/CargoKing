@@ -14,7 +14,13 @@ public class CarEngine : MonoBehaviour
     public float maxRevolutions = 6000f;
     public float rpmChangeSpeed = 3000f;
 
-    private bool isOnGasPadle = false;
+    [Header("Anfahrhilfe (vereinfachte Kupplung)")]
+    // Die Drehzahl wird sonst rein aus der Raddrehzahl abgeleitet. Beim Anfahren ist
+    // die Null, also haengt der Motor auf idleRevolutions fest - und dort liefert die
+    // Drehmomentkurve nur 3 Nm. Ein echtes Auto entkoppelt hier mit der Kupplung.
+    // Solange Gas anliegt und das Getriebe langsamer dreht, schleift sie und haelt den
+    // Motor auf dieser Drehzahl.
+    public float launchRevolutions = 2000f;
 
     [Header("Calculated Values !!! Do not change !!!")]
     public float revolutionsPerMinute;
@@ -22,22 +28,24 @@ public class CarEngine : MonoBehaviour
     public float calculatedTorque = 0f;
     public float currentTimeOnPedle = 0f;
     public int currentGear = 1;
+    public bool isOnGasPadle = false;
+    public bool isClutchSlipping = false;
 
-    public float CalculateRPM(float currentSpeedMS, int currentGear)
+    public float CalculateRPM(float currentSpeedMS, int currentGear, bool throttleApplied)
     {
         float tireCircumference = 2 * (float)Math.PI * tireRadius;
 
         float tireRPM = (currentSpeedMS / tireCircumference) * 60;
         float calculatedRPM = tireRPM * axleRatio * gears[currentGear - 1];
 
-        if(calculatedRPM < idleRevolutions)
-        {
-            calculatedRPM = idleRevolutions;
-        }
-        if(calculatedRPM > maxRevolutions)
-        {
-            calculatedRPM = maxRevolutions;
-        }
+        // Kupplung: unterhalb der Anfahrdrehzahl zieht das Getriebe den Motor nicht
+        // herunter. Sobald die Getriebedrehzahl die Anfahrdrehzahl ueberholt, greift
+        // die Untergrenze nicht mehr - der Uebergang ist stetig, ohne Sprung.
+        isOnGasPadle = throttleApplied;
+        isClutchSlipping = throttleApplied && calculatedRPM < launchRevolutions;
+
+        float lowerLimit = isClutchSlipping ? launchRevolutions : idleRevolutions;
+        calculatedRPM = Mathf.Clamp(calculatedRPM, lowerLimit, maxRevolutions);
 
         revolutionsPerMinute = calculatedRPM;
         return calculatedRPM;
@@ -102,13 +110,19 @@ public class CarEngine : MonoBehaviour
     }
 
 
-    //Dont know about this but for now we will stick with it
-    private int rpmFactor = 100000;
-    private int torqueFactor = 10000;
+    // Die Drehmomentkurve ist ueber rpm/10000 aufgetragen: ihre Keys liegen bei
+    // 0.10..0.60, das entspricht 1000..6000 U/min und damit exakt dem Bereich zwischen
+    // idleRevolutions und maxRevolutions. Der Kurvenwert ist das Drehmoment in kNm,
+    // Maximum 0.1083 = 108.3 Nm bei 2996 U/min.
+    // Vorher wurde die Drehzahl mit 100000 multipliziert statt geteilt. Jede Abfrage
+    // landete dadurch bei 1e8, weit hinter dem letzten Key, und m_PostInfinity=2
+    // (ClampForever) lieferte konstant denselben Wert - die Kurve war wirkungslos.
+    private int rpmDivisor = 10000;
+    private int torqueFactor = 1000;
 
     private float LookUpOnTorqueCurve(AnimationCurve curve, float xValueToLookAt)
     {
-        return curve.Evaluate(xValueToLookAt * rpmFactor) * torqueFactor;
+        return curve.Evaluate(xValueToLookAt / rpmDivisor) * torqueFactor;
     }
 
 }
