@@ -1,7 +1,5 @@
 using System;
-using R3;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 public class CarEngine : MonoBehaviour
 {
@@ -15,18 +13,9 @@ public class CarEngine : MonoBehaviour
     public float rpmChangeSpeed = 3000f;
 
     [Header("Anfahrhilfe (vereinfachte Kupplung)")]
-    // Die Drehzahl wird sonst rein aus der Raddrehzahl abgeleitet. Beim Anfahren ist
-    // die Null, also haengt der Motor auf idleRevolutions fest - und dort liefert die
-    // Drehmomentkurve nur 3 Nm. Ein echtes Auto entkoppelt hier mit der Kupplung.
-    // Solange Gas anliegt und das Getriebe langsamer dreht, schleift sie und haelt den
-    // Motor auf dieser Drehzahl.
     public float launchRevolutions = 2000f;
 
     [Header("Drehzahlbegrenzer")]
-    // Ueber diesen Bereich vor maxRevolutions wird das Moment ausgeblendet. Ohne
-    // Begrenzer bleibt das Moment oberhalb maxRevolutions auf dem Wert der Maximal-
-    // drehzahl stehen, statt wegzufallen - dann erreicht der KURZE Gang die hoechste
-    // Endgeschwindigkeit, weil er staerker uebersetzt. Genau verkehrt herum.
     public float revLimiterFadeRange = 300f;
 
     [Header("Calculated Values !!! Do not change !!!")]
@@ -99,13 +88,6 @@ public class CarEngine : MonoBehaviour
         }
     }
 
-    // Die Drehmomentkurve ist ueber rpm/10000 aufgetragen: ihre Keys liegen bei
-    // 0.10..0.60, das entspricht 1000..6000 U/min und damit exakt dem Bereich zwischen
-    // idleRevolutions und maxRevolutions. Der Kurvenwert ist das Drehmoment in kNm,
-    // Maximum 0.1083 = 108.3 Nm bei 2996 U/min.
-    // Vorher wurde die Drehzahl mit 100000 multipliziert statt geteilt. Jede Abfrage
-    // landete dadurch bei 1e8, weit hinter dem letzten Key, und m_PostInfinity=2
-    // (ClampForever) lieferte konstant denselben Wert - die Kurve war wirkungslos.
     private int rpmDivisor = 10000;
     private int torqueFactor = 1000;
 

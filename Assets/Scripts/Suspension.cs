@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 public class Suspension : MonoBehaviour
@@ -13,13 +12,9 @@ public class Suspension : MonoBehaviour
     public float tireGripFactor = 0.9f;
     public float powerScale = 0.1f;
     [Header("Brakes")]
-    // Dry asphalt carries roughly 8-9 m/s^2. At 800 kg that is about 7200 N in
-    // total, so with a 60/40 split around 2200 N per front and 1500 N per rear
-    // wheel. Set per wheel - this field is the brake balance.
     public float maxBrakeForce = 2200f;
     public float brakeFrictionCoefficient = 0.9f;
 
-    // Written by whoever drives the car, consumed in the next FixedUpdate.
     [SerializeField] private float brakeInput;
 
     [Header("Rollwiderstand")]
@@ -31,8 +26,6 @@ public class Suspension : MonoBehaviour
     [Header("Wheel Visual")]
     public Transform wheelMesh;
     public Transform wheelmeshToRotate;
-
-    float _lastForce;
 
     public Vector3 suspensionForce;
     public Vector3 lateralAxis;
@@ -119,7 +112,7 @@ public class Suspension : MonoBehaviour
         }
         else
         {
-            // Rad in der Luft: Anzeige-Werte zuruecksetzen, sonst stehen alte Pfeile stehen.
+            // Rad in der Luft: Anzeige-Werte zuruecksetzen, sonst bleiben alte Pfeile stehen.
             isGrounded = false;
             _debugFrame = transform.rotation;
             suspensionForce = Vector3.zero;
@@ -166,9 +159,6 @@ public class Suspension : MonoBehaviour
         return (offset * springStrength) - (velocity * damping);
     }
 
-    // forcePoint ist der Punkt, an dem der Aufrufer die Kraft ansetzt. Geschwindigkeit
-    // und Effektivmasse MUESSEN am selben Punkt genommen werden, sonst passen Hebelarm
-    // und Kraft nicht zusammen und die Kompensation ist systematisch daneben.
     private Vector3 CalculateTireForces(Vector3 forcePoint)
     {
     lateralAxis = wheelMesh.up;

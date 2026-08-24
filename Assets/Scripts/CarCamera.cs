@@ -1,8 +1,4 @@
-using Unity.Collections;
-using Unity.VisualScripting;
 using UnityEngine;
-using UnityEngine.Animations;
-using UnityEngine.UIElements;
 
 public class CarCamera : MonoBehaviour
 {
