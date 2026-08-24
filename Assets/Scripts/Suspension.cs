@@ -7,7 +7,7 @@ public class Suspension : MonoBehaviour
     public Rigidbody carBody;
 
     [Header("Suspension Settings")]
-    private float restLength = 0.4f;
+    private float restLength = 0.45f;
     public float springStrength = 300;
     public float damping = 25;
     public float tireGripFactor = 0.9f;
@@ -25,6 +25,7 @@ public class Suspension : MonoBehaviour
 
     [Header("Wheel Visual")]
     public Transform wheelMesh;
+    public Transform wheelmeshToRotate;
 
     float _lastForce;
 
@@ -55,6 +56,8 @@ public class Suspension : MonoBehaviour
     private Vector3 _suspensionForcePointLocal;
     private Vector3 _tireForcePointLocal;
     private Vector3 _contactPointLocal;
+    private float _spinAngle;
+    private Quaternion _baseLocalRotation;
 
     public Vector3 suspensionForcePoint => transform.TransformPoint(_suspensionForcePointLocal);
     public Vector3 tireForcePoint => transform.TransformPoint(_tireForcePointLocal);
@@ -77,15 +80,13 @@ public class Suspension : MonoBehaviour
     public Vector3 displayTireSlipForce     => ToCurrentPose(tireSlip);
     public Vector3 displayTireForce         => ToCurrentPose(tireForce);
 
-    public AnimationCurve torqueCurve;
-    public AnimationCurve gasPadelCurve;
-
     void Awake()
     {
         if (wheelMesh != null)
         {
             wheelRadius = wheelMesh.localScale.z / 2; // Unit in meters
             tireMass = carBody.mass / 4;
+            _baseLocalRotation = wheelmeshToRotate.localRotation;
         }
     }
 
@@ -119,6 +120,7 @@ public class Suspension : MonoBehaviour
             carBody.AddForceAtPosition(CalculateTireForces(gripForcePoint), gripForcePoint);
 
             _debugFrame = transform.rotation;
+            VisualWheelRotation(rollDirection, tireWorldVelocity);
         }
         else
         {
@@ -133,6 +135,15 @@ public class Suspension : MonoBehaviour
             rollStopLimit = 0f;
             rollForceAtStopLimit = false;
         }
+    }
+
+    private void VisualWheelRotation(Vector3 rollDirection, Vector3 tireWorldVelocity)
+    {
+        float v = Vector3.Dot(rollDirection, tireWorldVelocity);
+        float omega = v / wheelRadius;
+        float deltaDeg = omega * Time.fixedDeltaTime *  Mathf.Rad2Deg;
+        _spinAngle = Mathf.Repeat(_spinAngle + deltaDeg, 360f);
+        wheelmeshToRotate.localRotation = _baseLocalRotation * Quaternion.Euler(0f, -_spinAngle, 0f);
     }
 
     private void OnDrawGizmos()
