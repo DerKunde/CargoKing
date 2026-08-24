@@ -42,7 +42,7 @@ public class VisualizeWheelForces : MonoBehaviour
 
     [Header("Messwerte in N (nur Anzeige)")]
     public float springForceNewton;
-    public float tireRollForceNewton;
+    public float tireLongitudinalForceNewton;
     public float rollResistanceLimitNewton;
     public float rollStopLimitNewton;
     public float tireSlipForceNewton;
@@ -68,7 +68,7 @@ public class VisualizeWheelForces : MonoBehaviour
         }
 
         springForceNewton = suspension.suspensionForce.magnitude;
-        tireRollForceNewton = suspension.tireRollForce.magnitude;
+        tireLongitudinalForceNewton = suspension.tireLongitudinalForce.magnitude;
         rollResistanceLimitNewton = suspension.rollResistanceLimit;
         rollStopLimitNewton = suspension.rollStopLimit;
         tireSlipForceNewton = suspension.tireSlip.magnitude;
@@ -92,7 +92,7 @@ public class VisualizeWheelForces : MonoBehaviour
 
         if (showTireRollForce)
         {
-            DrawForce(suspension.tireForcePoint, suspension.displayTireRollForce,
+            DrawForce(suspension.tireForcePoint, suspension.displayTireLongitudinalForce,
                 suspension.rollForceAtStopLimit ? tireRollForceClampedColor : tireRollForceColor);
         }
 

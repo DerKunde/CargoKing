@@ -13,110 +13,71 @@ public class CarController : MonoBehaviour
     public Transform rearRightWheel;
 
     public float maxSteerAngle = 25f;
-    private float steeringTime = 0f;
-    private const float MAX_TIME = 0.3f;
-    private float currentTimeOnPedle = 0f;
 
     [Header("Curves")]
     public AnimationCurve steeringInputCurve;
 
-    void FixedUpdate()
+    private Suspension[] brakedWheels;
+
+    private void Awake()
     {
-        var keyboard = Keyboard.current;
-        if(keyboard == null)
+        // Looked up once instead of on every physics step.
+        brakedWheels = new[]
         {
-            return;
-        }
+            frontLeftWheel.GetComponent<Suspension>(),
+            frontRightWheel.GetComponent<Suspension>(),
+            rearLeftWheel.GetComponent<Suspension>(),
+            rearRightWheel.GetComponent<Suspension>(),
+        };
+    }
 
-        float forwardSpeedMS = Vector3.Dot(carBody.linearVelocity, transform.forward);
-        bool throttleApplied = keyboard.wKey.isPressed;
+    public void Drive(in DrivingInput input)
+    {
+        ApplyGearShift(input.Shift);
+        ApplyThrottle(input.Throttle);
+        ApplySteering(input.Steer);
+        ApplyBraking(input.Brake);
 
-        if (throttleApplied)
-        {
-            currentTimeOnPedle += Time.fixedDeltaTime;
-            currentTimeOnPedle = Mathf.Clamp(currentTimeOnPedle, 0f, 1f);
-        }
-        else
-        {
-            currentTimeOnPedle = 0f;
-        }
-
-        // Erst nach dem Gas-Status: die Anfahrhilfe in CalculateRPM braucht ihn.
-        float currentRPM = carEngine.CalculateRPM(forwardSpeedMS, carEngine.currentGear, throttleApplied);
-
-        float wheelTorque = 0f;
-        if (throttleApplied)
-        {
-            wheelTorque = carEngine.CalculateWheelTorque(currentRPM, carEngine.currentGear, carEngine.CalculateGasInput(currentTimeOnPedle));
-        }
-        else
-        {
-            //Just dummy now!!!
-            wheelTorque = 0f;
-        }
-
-        float forceInNewton = wheelTorque / carEngine.tireRadius;
-        carBody.AddForceAtPosition(transform.forward * forceInNewton / 2, rearLeftWheel.position);
-        carBody.AddForceAtPosition(transform.forward * forceInNewton / 2, rearRightWheel.position);
         carEngine.speedInKmH = Vector3.Dot(carBody.linearVelocity, transform.forward) * 3.6f;
-
-        bool isSteering = keyboard.aKey.isPressed || keyboard.dKey.isPressed;
-        if (isSteering)
-        {
-            steeringTime += Time.fixedDeltaTime;
-        }
-        else
-        {
-            steeringTime -= Time.fixedDeltaTime;
-        }
-
-        steeringTime = Mathf.Clamp(steeringTime, 0f, MAX_TIME);
-        float currentCurveValue = GetSmoothedSteeringAngle(steeringTime);
-
-        if (keyboard.aKey.isPressed)
-        {
-            float currentSteeringAngle = maxSteerAngle * currentCurveValue;
-            frontLeftWheel.localEulerAngles = new Vector3(0,-currentSteeringAngle,0);
-            frontRightWheel.localEulerAngles = new Vector3(0,-currentSteeringAngle,0);
-        }
-        else if (keyboard.dKey.isPressed)
-        {
-            float currentSteeringAngle = maxSteerAngle * currentCurveValue;
-            frontLeftWheel.localEulerAngles = new Vector3(0,currentSteeringAngle,0);
-            frontRightWheel.localEulerAngles = new Vector3(0,currentSteeringAngle,0);
-        }
-        else
-        {
-            float lastUsedMaxAngle = (frontLeftWheel.localEulerAngles.y > 180f || frontLeftWheel.localEulerAngles.y < 0f) ? -maxSteerAngle : maxSteerAngle;
-
-            float currentAngle = lastUsedMaxAngle * currentCurveValue;
-
-            if(steeringTime <= 0)
-            {
-                currentAngle = 0f;
-            }
-            frontLeftWheel.localEulerAngles = new Vector3(0, currentAngle, 0);
-            frontRightWheel.localEulerAngles = new Vector3(0, currentAngle, 0);
-        }
-
-        if (keyboard.sKey.isPressed)
-        {
-            frontLeftWheel.GetComponent<Suspension>().CalculateBraking();
-            frontRightWheel.GetComponent<Suspension>().CalculateBraking();
-        }
-
-        if (keyboard.rKey.isPressed)
-        {
-            ResetCar();
-        }
     }
 
-    private float GetSmoothedSteeringAngle(float steeringTime)
+    private void ApplyThrottle(float throttle)
     {
-        return steeringInputCurve.Evaluate(steeringTime);
+        float totalWheelTorqueInNewton = carEngine.CalculateWheelTorque(throttle, Vector3.Dot(carBody.linearVelocity, transform.forward));
+        if(throttle > 0f)
+        {
+            carBody.AddForceAtPosition(transform.forward * totalWheelTorqueInNewton / 2, rearLeftWheel.position);
+            carBody.AddForceAtPosition(transform.forward * totalWheelTorqueInNewton / 2, rearRightWheel.position);   
+        }
     }
 
-    private void ResetCar()
+    private void ApplyGearShift(GearShift shift)
+    {
+        if(shift != GearShift.None)
+        {
+            carEngine.ChangeGear(shift);
+        }
+    }
+
+    private void ApplySteering(float steer)
+    {
+        float steerAngle = maxSteerAngle * steer;
+        frontLeftWheel.localEulerAngles = new Vector3(0, steerAngle, 0);
+        frontRightWheel.localEulerAngles = new Vector3(0, steerAngle, 0);
+    }
+
+    private void ApplyBraking(float brake)
+    {
+        // Handed over every step, not only while the pedal is down - letting go has
+        // to reach the wheels as well. The force itself is built in Suspension, where
+        // normal force and contact point are known.
+        foreach (Suspension wheel in brakedWheels)
+        {
+            wheel.SetBrakeInput(brake);
+        }
+    }
+
+    public void ResetCar()
     {
         transform.Translate(0, 0.3f, 0);
         Vector3 currentEuler = transform.localEulerAngles;

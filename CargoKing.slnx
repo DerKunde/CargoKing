@@ -1,5 +1,9 @@
 ﻿<Solution>
   <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="R3.Unity.csproj" />
   <Project Path="NuGetForUnity.csproj" />
+  <Project Path="R3.Unity.Editor.csproj" />
   <Project Path="Assembly-CSharp-Editor.csproj" />
+  <Project Path="R3.Unity.TextMeshPro.csproj" />
+  <Project Path="R3.Unity.XRInteractionToolkit.csproj" />
 </Solution>

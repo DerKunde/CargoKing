@@ -7,17 +7,22 @@ public class Suspension : MonoBehaviour
     public Rigidbody carBody;
 
     [Header("Suspension Settings")]
-    private float restLength = 0.45f;
+    private float restLength = 0.6f;
     public float springStrength = 300;
     public float damping = 25;
     public float tireGripFactor = 0.9f;
     public float powerScale = 0.1f;
-    public float brakingPower = 10f;
+    [Header("Brakes")]
+    // Dry asphalt carries roughly 8-9 m/s^2. At 800 kg that is about 7200 N in
+    // total, so with a 60/40 split around 2200 N per front and 1500 N per rear
+    // wheel. Set per wheel - this field is the brake balance.
+    public float maxBrakeForce = 2200f;
+    public float brakeFrictionCoefficient = 0.9f;
+
+    // Written by whoever drives the car, consumed in the next FixedUpdate.
+    [SerializeField] private float brakeInput;
 
     [Header("Rollwiderstand")]
-    // Realistischer Bereich fuer Reifen auf Asphalt. Bei 800 kg sind das rund 118 N
-    // Gesamtwiderstand - der Antrieb liefert im Leerlauf nur ~213 N, viel hoeher darf
-    // Crr also nicht werden, sonst kommt das Auto nicht vom Fleck.
     public float rollingResistanceCoefficient = 0.015f;
     private float tireMass = 1f;
     private float wheelRadius = 0.1f;
@@ -30,29 +35,21 @@ public class Suspension : MonoBehaviour
     float _lastForce;
 
     public Vector3 suspensionForce;
-    // Querachse des Reifens: die Drehachse des Rades (wheelMesh.up).
-    // Achse, keine Richtung - das Vorzeichen ist fuer die Kraftberechnung ohne Belang.
     public Vector3 lateralAxis;
     public Vector3 tireWorldVelocity;
     public Vector3 tireSlip;
 
     [Header("Debug / Visualisierung (nur Anzeige, keine Physik)")]
     public Vector3 rollDirection;
-    public Vector3 tireRollForce;
+    public Vector3 tireLongitudinalForce;
+    public float brakeForceDemand;
+    public float gripLimit;
     public Vector3 tireForce;
-
-    // Die beiden Obergrenzen des Rollwiderstands einzeln, damit im Gizmo sichtbar wird,
-    // welche gerade bindet: der Reibwert oder der Anti-Rueckwaerts-Clamp beim Anhalten.
     public float rollResistanceLimit;
     public float rollStopLimit;
     public bool rollForceAtStopLimit;
 
     public bool isGrounded;
-
-    // Angriffspunkte: genau die Positionen, die an AddForceAtPosition uebergeben werden,
-    // aber relativ zum Federbein gespeichert. Als Weltkoordinate eingefroren wuerden sie
-    // einen Physikschritt hinterherhaengen: FixedUpdate laeuft vor dem Solver, gezeichnet
-    // wird gegen die Pose danach.
     private Vector3 _suspensionForcePointLocal;
     private Vector3 _tireForcePointLocal;
     private Vector3 _contactPointLocal;
@@ -62,10 +59,6 @@ public class Suspension : MonoBehaviour
     public Vector3 suspensionForcePoint => transform.TransformPoint(_suspensionForcePointLocal);
     public Vector3 tireForcePoint => transform.TransformPoint(_tireForcePointLocal);
     public Vector3 contactPoint => transform.TransformPoint(_contactPointLocal);
-
-    // Dasselbe Problem betrifft die Richtungen: die Vektoren unten sind Weltvektoren,
-    // eingefroren vor dem Solve. Beim Lenken und Wanken zeigen sie sonst einen Schritt
-    // zu spaet. _debugFrame haelt die Pose fest, in der sie geschrieben wurden.
     private Quaternion _debugFrame = Quaternion.identity;
 
     private Vector3 ToCurrentPose(Vector3 frozenWorldVector)
@@ -76,7 +69,7 @@ public class Suspension : MonoBehaviour
     public Vector3 displaySuspensionForce  => ToCurrentPose(suspensionForce);
     public Vector3 displayLateralAxis => ToCurrentPose(lateralAxis);
     public Vector3 displayRollDirection     => ToCurrentPose(rollDirection);
-    public Vector3 displayTireRollForce     => ToCurrentPose(tireRollForce);
+    public Vector3 displayTireLongitudinalForce => ToCurrentPose(tireLongitudinalForce);
     public Vector3 displayTireSlipForce     => ToCurrentPose(tireSlip);
     public Vector3 displayTireForce         => ToCurrentPose(tireForce);
 
@@ -114,6 +107,8 @@ public class Suspension : MonoBehaviour
             _suspensionForcePointLocal = transform.InverseTransformPoint(springForcePoint);
             carBody.AddForceAtPosition(transform.up * (float)force, springForcePoint);
             wheelMesh.position = transform.position - transform.up * (hit.distance - wheelRadius);
+            wheelmeshToRotate.position = transform.position - transform.up * (hit.distance - wheelRadius);
+
 
             Vector3 gripForcePoint = wheelMesh.position;
             _tireForcePointLocal = transform.InverseTransformPoint(gripForcePoint);
@@ -129,7 +124,9 @@ public class Suspension : MonoBehaviour
             _debugFrame = transform.rotation;
             suspensionForce = Vector3.zero;
             tireSlip = Vector3.zero;
-            tireRollForce = Vector3.zero;
+            tireLongitudinalForce = Vector3.zero;
+            brakeForceDemand = 0f;
+            gripLimit = 0f;
             tireForce = Vector3.zero;
             rollResistanceLimit = 0f;
             rollStopLimit = 0f;
@@ -201,14 +198,25 @@ public class Suspension : MonoBehaviour
     // am Gesamtimpuls beanspruchen. Mit EffectiveMassAt (5.6 kg pro Rad bei 10 kg Auto)
     // bremsen die vier zusammen mit dem 2.2-fachen des noetigen Impulses und das Auto
     // schwingt um Null. Sind Raeder in der Luft, wird untersteuert geklemmt - unkritisch.
-    rollResistanceLimit  = rollingResistanceCoefficient * normalForce;
-    rollStopLimit        = Mathf.Abs(forwardVel) * tireMass / Time.fixedDeltaTime;
-    rollForceAtStopLimit = rollStopLimit < rollResistanceLimit;
+    brakeForceDemand    = brakeInput * maxBrakeForce;
+    rollResistanceLimit = rollingResistanceCoefficient * normalForce;
 
-    float rollMagnitude = Mathf.Min(rollResistanceLimit, rollStopLimit);
+    // A tire cannot pass on more than its share of the load allows.
+    gripLimit     = brakeFrictionCoefficient * normalForce;
+    rollStopLimit = Mathf.Abs(forwardVel) * tireMass / Time.fixedDeltaTime;
 
-    tireRollForce = -Mathf.Sign(forwardVel) * rollDirection * rollMagnitude;
-    tireForce     = tireSlip + tireRollForce;
+    // Braking and rolling resistance are both longitudinal resistive forces, so they
+    // are summed BEFORE the clamps. Clamping each one on its own lets the two exceed
+    // the stopping impulse together and the car jitters around zero - the same
+    // failure the reference mass note above describes for four wheels acting at once.
+    float longitudinalDemand    = brakeForceDemand + rollResistanceLimit;
+    float longitudinalMagnitude = Mathf.Min(longitudinalDemand, gripLimit);
+    longitudinalMagnitude       = Mathf.Min(longitudinalMagnitude, rollStopLimit);
+
+    rollForceAtStopLimit = rollStopLimit < Mathf.Min(longitudinalDemand, gripLimit);
+
+    tireLongitudinalForce = -Mathf.Sign(forwardVel) * rollDirection * longitudinalMagnitude;
+    tireForce             = tireSlip + tireLongitudinalForce;
 
     return tireForce;
     }
@@ -227,8 +235,8 @@ public class Suspension : MonoBehaviour
     return 1f / (1f / carBody.mass + angular);
     }
 
-    public void CalculateBraking()
+    public void SetBrakeInput(float value)
     {
-        carBody.AddForceAtPosition(-transform.forward * brakingPower, transform.position);
+        brakeInput = Mathf.Clamp01(value);
     }
 }

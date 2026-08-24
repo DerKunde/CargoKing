@@ -176,6 +176,17 @@ MonoBehaviour:
   speedKmH: 0
   dragForceNewton: 0
   dragForce: {x: 0, y: 0, z: 0}
+--- !u!114 &22943717 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 1535265798722219626, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+  m_PrefabInstance: {fileID: 1728897013}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 22943708}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f740fc0d7e453c745b238dde92881da2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarController
 --- !u!1 &93094760
 GameObject:
   m_ObjectHideFlags: 0
@@ -1329,6 +1340,175 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 90, y: 0, z: 90}
+--- !u!1 &1206546112
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1206546114}
+  - component: {fileID: 1206546113}
+  - component: {fileID: 1206546115}
+  m_Layer: 0
+  m_Name: Input
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1206546113
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1206546112}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d9d6a9fbba8c53c48ae794598e36a625, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CarDrivingInput
+  pedalRiseRate: 3.3
+  pedalFallRate: 5
+  steerRate: 3.3
+  steerReturnRate: 3.3
+  throttleCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: -2.3283064e-10
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.3
+      value: 0.99999696
+      inSlope: 0.004223195
+      outSlope: 0.004223195
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1.0007646
+      value: 1.0010536
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  steerCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: 0
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.5
+      value: 1
+      inSlope: 0.0084818
+      outSlope: 0.0084818
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.9981095
+      value: 1.0021164
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  brakeCurve:
+    serializedVersion: 2
+    m_Curve:
+    - serializedVersion: 3
+      time: -2.3283064e-10
+      value: 0
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.3
+      value: 0.99999696
+      inSlope: 0.004223195
+      outSlope: 0.004223195
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 1.0007646
+      value: 1.0010536
+      inSlope: 0
+      outSlope: 0
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    m_PreInfinity: 2
+    m_PostInfinity: 2
+    m_RotationOrder: 4
+  steerTravel: 0
+  throttleTravel: 0
+  brakeTravel: 0
+  steer: 0
+  throttle: 0
+  brake: 0
+  handbrake: 0
+--- !u!4 &1206546114
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1206546112}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1206546115
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1206546112}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 22bf4143a8b8c4943803dd76288dcabc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerDriver
+  drivingInput: {fileID: 1206546113}
+  currentCar: {fileID: 22943717}
 --- !u!1 &1505167785
 GameObject:
   m_ObjectHideFlags: 0
@@ -1503,6 +1683,10 @@ PrefabInstance:
       propertyPath: m_Enabled
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 1535265798722219626, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: maxSteerAngle
+      value: 15
+      objectReference: {fileID: 0}
     - target: {fileID: 1766786146544871906, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: m_LocalPosition.x
       value: -2
@@ -1636,6 +1820,10 @@ PrefabInstance:
       value: 1500
       objectReference: {fileID: 0}
     - target: {fileID: 6266409228257396957, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: maxBrakeForce
+      value: 1500
+      objectReference: {fileID: 0}
+    - target: {fileID: 6266409228257396957, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: springStrength
       value: 6000
       objectReference: {fileID: 0}
@@ -1701,6 +1889,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6459134920310415132, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
       propertyPath: damping
+      value: 1500
+      objectReference: {fileID: 0}
+    - target: {fileID: 6459134920310415132, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
+      propertyPath: maxBrakeForce
       value: 1500
       objectReference: {fileID: 0}
     - target: {fileID: 6459134920310415132, guid: f673e99c348c9c84094334ce84f0d3a6, type: 3}
@@ -2363,3 +2555,4 @@ SceneRoots:
   - {fileID: 1505167789}
   - {fileID: 1876419391}
   - {fileID: 1728897013}
+  - {fileID: 1206546114}

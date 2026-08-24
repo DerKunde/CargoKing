@@ -1,11 +1,11 @@
 using System;
+using R3;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class CarEngine : MonoBehaviour
 {
     public AnimationCurve torqueCurve;
-    public AnimationCurve gasPadleCurve;
     public float[] gears = {3.2f, 1.9f, 1.3f, 1.0f, 0.8f};
     public float axleRatio = 4f;
     public float efficiency = 0.85f;
@@ -40,7 +40,7 @@ public class CarEngine : MonoBehaviour
     public float gearboxRevolutions;
     public float revLimiterFactor = 1f;
 
-    public float CalculateRPM(float currentSpeedMS, int currentGear, bool throttleApplied)
+    private float CalculateRPM(float currentSpeedMS, bool throttleApplied)
     {
         float tireCircumference = 2 * (float)Math.PI * tireRadius;
 
@@ -66,23 +66,20 @@ public class CarEngine : MonoBehaviour
         return calculatedRPM;
     }
 
-    public float CalculateWheelTorque(float currentRPM, int currentGear, float gasPadleValue)
+    public float CalculateWheelTorque(float gasPadleValue, float currentSpeedMS)
     {
-        float maxPossibleTorque = GetMaxTorqueForRPM(currentRPM);
-        float currentTorque = maxPossibleTorque * gasPadleValue * revLimiterFactor;
-
-        float wheelTorque = currentTorque * gears[currentGear - 1] * axleRatio * efficiency;
-        return wheelTorque;
-    }
-
-    public float CalculateGasInput(float timeOnPadle)
-    {
-        if(timeOnPadle >= 1)
+        float maxPossibleTorque = GetMaxTorqueForRPM(CalculateRPM(currentSpeedMS, gasPadleValue > 0f));
+        if(gasPadleValue > 0f)
         {
-            timeOnPadle = 1;
-        }
+            float currentTorque = maxPossibleTorque * gasPadleValue * revLimiterFactor;
 
-        return gasPadleCurve.Evaluate(timeOnPadle);
+            float wheelTorque = currentTorque * gears[currentGear - 1] * axleRatio * efficiency;
+            return wheelTorque / tireRadius;   
+        }
+        else
+        {
+            return 0f;
+        }
     }
 
     private float GetMaxTorqueForRPM(float currentRPM)
@@ -90,45 +87,17 @@ public class CarEngine : MonoBehaviour
         return LookUpOnTorqueCurve(torqueCurve, currentRPM);
     }
 
-    private void ChangeGear(GearChange direction)
+    public void ChangeGear(GearShift direction)
     {
-        // gears hat 5 Eintraege, currentGear ist 1-basiert: der hoechste gueltige Gang ist
-        // gears.Length. Mit "currentGear + 1 < gears.Length" war bei Gang 4 Schluss und
-        // der 5. Gang (0.8) unerreichbar.
-        if(direction == GearChange.Up && currentGear < gears.Length)
+        if(direction == GearShift.Up && currentGear < gears.Length)
         {
             currentGear += 1;
         }
-
-        // Analog nach unten: "currentGear - 1 > 1" liess Gang 1 nach dem ersten
-        // Hochschalten nicht mehr zu.
-        if(direction == GearChange.Down && currentGear > 1)
+        if(direction == GearShift.Down && currentGear > 1)
         {
             currentGear -= 1;
         }
     }
-
-    void FixedUpdate()
-    {
-        var keyboard = Keyboard.current;
-
-        if (keyboard.qKey.wasPressedThisFrame)
-        {
-            ChangeGear(GearChange.Down);
-        }
-
-        if (keyboard.eKey.wasPressedThisFrame)
-        {
-            ChangeGear(GearChange.Up);
-        }
-    }
-
-    enum GearChange
-    {
-        Up,
-        Down,
-    }
-
 
     // Die Drehmomentkurve ist ueber rpm/10000 aufgetragen: ihre Keys liegen bei
     // 0.10..0.60, das entspricht 1000..6000 U/min und damit exakt dem Bereich zwischen
