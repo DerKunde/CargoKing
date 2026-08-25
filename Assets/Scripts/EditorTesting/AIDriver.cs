@@ -26,41 +26,62 @@ public class AIDriver : MonoBehaviour
 
     private void FixedUpdate()
     {
-
         Vector3 dirToMovePosition = (target - transform.position).normalized;
         float distanceToTarget = Vector3.Distance(transform.position, target);
 
+        //To far away from Target, keep moving
         if (distanceToTarget > reachedTargetDistance)
         {
-            //To far away from Target, keep moving
+            float steerInput = 0f;
+            float throttleInput = 0.2f;
+            float brakeInput = 0f;
+            bool handbrakeInput = false;
+            GearShift shiftInput = GearShift.None;
+            //Determin when braking to start
+            if(distanceToTarget <= CalculateBrakingDistance(carController.CarSpeedInMS()))
+            {
+                brakeInput = 1f;
+                throttleInput = 0f;
+            }
             float dot = Vector3.Dot(transform.forward, dirToMovePosition);
             if (dot > 0)
             {
-                //Target in front
+                if(carController.carEngine.currentGear == 0)
+                {
+                    shiftInput = GearShift.Up;
+                }
             }
             else
             {
-                //Target in back
+                if(carController.carEngine.currentGear == 1)
+                {
+                    shiftInput = GearShift.Down;
+                }
             }
 
+            //TODO: Steering needs to be smoother, if angleToDirection is small steering flicks around
             float angleToDirection = Vector3.SignedAngle(transform.forward, dirToMovePosition, Vector3.up);
             if (angleToDirection > 0)
             {
-                //turn left (positiv)??
+                steerInput = 1f;
             }
             else
             {
-                //turn right (negativ)??
+                steerInput = -1f;
             }
+            if(Mathf.Abs(angleToDirection) < 10f)
+            {
+                steerInput = 0f;
+            }
+            DrivingInput input = new DrivingInput(steerInput, throttleInput, brakeInput, handbrakeInput, shiftInput);
+            carController.Drive(input);
         }
         else
         {
             //Target reached -> Stop
             DrivingInput inputToStop = new DrivingInput(0f, 0f, 1f, false, GearShift.None);
+            carController.Drive(inputToStop);
         }
-
-        DrivingInput input = new DrivingInput(1f, 0.3f, 0f, false, GearShift.None);
-        carController.Drive(input);
     }
 
     private float CalculateBrakingDistance(float speedInMS)
@@ -75,5 +96,5 @@ public class AIDriver : MonoBehaviour
         
     }
 
-    
+
 }

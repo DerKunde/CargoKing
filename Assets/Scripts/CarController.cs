@@ -91,4 +91,9 @@ public class CarController : MonoBehaviour
         }
         return total / carBody.mass;
     }
+
+    public float CarSpeedInMS()
+    {
+        return Mathf.Abs(Vector3.Dot(carBody.linearVelocity, transform.forward));
+    }
 }
