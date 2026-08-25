@@ -52,7 +52,7 @@ public class CarController : MonoBehaviour
     {
         if(shift != GearShift.None)
         {
-            carEngine.ChangeGear(shift);
+            carEngine.ChangeGear(shift, carEngine.speedInKmH * 3.6f);
         }
     }
 

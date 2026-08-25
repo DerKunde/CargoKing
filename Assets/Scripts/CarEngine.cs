@@ -4,7 +4,12 @@ using UnityEngine;
 public class CarEngine : MonoBehaviour
 {
     public AnimationCurve torqueCurve;
+    [Header("Gearbox")]
     public float[] gears = {3.2f, 1.9f, 1.3f, 1.0f, 0.8f};
+    public float reverseRation = 3.5f;
+    public float CurrentGearRation => currentGear == 0 ? reverseRation : gears[currentGear -1];
+    public float DriveDirection => currentGear == 0 ? -1f : 1f;
+    public float maxReverseShiftSpeed = 1f;
     public float axleRatio = 4f;
     public float efficiency = 0.85f;
     public float tireRadius = 0.31f;
@@ -33,8 +38,9 @@ public class CarEngine : MonoBehaviour
     {
         float tireCircumference = 2 * (float)Math.PI * tireRadius;
 
-        float tireRPM = (currentSpeedMS / tireCircumference) * 60;
-        float calculatedRPM = tireRPM * axleRatio * gears[currentGear - 1];
+        float alignedSpeed = currentSpeedMS * DriveDirection;
+        float tireRPM = (alignedSpeed / tireCircumference) * 60;
+        float calculatedRPM = tireRPM * axleRatio * CurrentGearRation;
 
         // Ungeklemmt festhalten: der Begrenzer muss wissen, wie weit das Getriebe
         // ueber die Maximaldrehzahl hinausdreht. Nach dem Clamp unten waere das nicht
@@ -62,8 +68,8 @@ public class CarEngine : MonoBehaviour
         {
             float currentTorque = maxPossibleTorque * gasPadleValue * revLimiterFactor;
 
-            float wheelTorque = currentTorque * gears[currentGear - 1] * axleRatio * efficiency;
-            return wheelTorque / tireRadius;   
+            float wheelTorque = currentTorque * CurrentGearRation * axleRatio * efficiency;
+            return (wheelTorque / tireRadius) * DriveDirection;   
         }
         else
         {
@@ -76,14 +82,15 @@ public class CarEngine : MonoBehaviour
         return LookUpOnTorqueCurve(torqueCurve, currentRPM);
     }
 
-    public void ChangeGear(GearShift direction)
+    public void ChangeGear(GearShift direction, float currentSpeedMS)
     {
         if(direction == GearShift.Up && currentGear < gears.Length)
         {
             currentGear += 1;
         }
-        if(direction == GearShift.Down && currentGear > 1)
+        if(direction == GearShift.Down && currentGear > 0)
         {
+            if(currentGear == 1 && Mathf.Abs(currentSpeedMS) > maxReverseShiftSpeed) return;
             currentGear -= 1;
         }
     }
