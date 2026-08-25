@@ -52,7 +52,9 @@ public class CarController : MonoBehaviour
     {
         if(shift != GearShift.None)
         {
-            carEngine.ChangeGear(shift, carEngine.speedInKmH * 3.6f);
+            // speedInKmH is km/h and is written further down in Drive(), so it was both
+            // the wrong unit and a frame stale. ChangeGear wants m/s.
+            carEngine.ChangeGear(shift, CarSpeedInMS());
         }
     }
 
