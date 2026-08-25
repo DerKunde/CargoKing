@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 public class Suspension : MonoBehaviour
@@ -228,5 +229,14 @@ public class Suspension : MonoBehaviour
     public void SetBrakeInput(float value)
     {
         brakeInput = Mathf.Clamp01(value);
+    }
+
+    public float AvailableBrakeForce()
+    {
+        if(!isGrounded) return 0f;
+
+        float normalForce = Mathf.Max(0f, suspensionForce.y);
+        float demand = maxBrakeForce + rollingResistanceCoefficient * normalForce;
+        return Mathf.Min(demand, brakeFrictionCoefficient * normalForce);
     }
 }

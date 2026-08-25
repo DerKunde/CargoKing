@@ -81,4 +81,14 @@ public class CarController : MonoBehaviour
         currentEuler.z = 0f;
         transform.localEulerAngles = currentEuler;
     }
+
+    public float MaxBrakeDecelartion()
+    {
+        float total = 0f;
+        foreach(Suspension wheel in brakedWheels)
+        {
+            total += wheel.AvailableBrakeForce();
+        }
+        return total / carBody.mass;
+    }
 }
