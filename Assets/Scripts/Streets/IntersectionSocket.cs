@@ -22,6 +22,9 @@ namespace CargoKing.Streets
         /// <summary>Direction the road leads away from the intersection, in world space.</summary>
         public Vector3 Outward => transform.forward;
 
+        /// <summary>The intersection this socket belongs to, or null when it sits on its own.</summary>
+        public Intersection Owner => GetComponentInParent<Intersection>();
+
         private void OnDrawGizmosSelected()
         {
             Vector3 position = transform.position;

@@ -40,6 +40,12 @@ namespace CargoKing.Streets
         [Min(0f)]
         public float curvatureWarningRadius;
 
+        [Tooltip("What the first knot of the spline docks to.")]
+        public StreetEndConnector startConnection = new StreetEndConnector();
+
+        [Tooltip("What the last knot of the spline docks to.")]
+        public StreetEndConnector endConnection = new StreetEndConnector();
+
         /// <summary>
         /// Multiple of the road's width below which a swept mesh starts to look wrong. A ribbon bent
         /// to radius R compresses its inner edge by 1 - halfWidth/R, so at three times the full width
@@ -47,6 +53,12 @@ namespace CargoKing.Streets
         /// in an intersection prefab, whose corner geometry is modelled rather than swept.
         /// </summary>
         private const float WarningRadiusPerWidth = 3f;
+
+        /// <summary>How far a driven knot may already be from its target before it is rewritten.</summary>
+        private const float PositionEpsilon = 0.0005f;
+
+        /// <summary>How far a driven knot may already be turned from its target, in degrees.</summary>
+        private const float RotationEpsilon = 0.05f;
 
         private SplineContainer splineContainer;
         private MeshFilter meshFilter;
@@ -114,10 +126,243 @@ namespace CargoKing.Streets
 
         private void Update()
         {
+            // Checked every tick rather than driven by an event: a moved intersection raises no
+            // callback of its own. The check costs two transform lookups and writes nothing unless the
+            // knot has actually drifted from its socket.
+            if (ApplyConnections())
+            {
+                isDirty = true;
+            }
+
             if (isDirty)
             {
                 Rebuild();
             }
+        }
+
+        /// <summary>The connector for one end of this segment.</summary>
+        public StreetEndConnector ConnectorAt(StreetEnd end)
+        {
+            return end == StreetEnd.Start ? startConnection : endConnection;
+        }
+
+        /// <summary>World position of the first or last knot of the spline.</summary>
+        public Vector3 EndPosition(StreetEnd end)
+        {
+            Spline spline = Spline;
+            if (spline == null || spline.Count == 0)
+            {
+                return transform.position;
+            }
+
+            float3 position = spline[end == StreetEnd.Start ? 0 : spline.Count - 1].Position;
+            return transform.TransformPoint(new Vector3(position.x, position.y, position.z));
+        }
+
+        /// <summary>
+        /// World direction the spline runs in at that end, along its own parameter direction - so at
+        /// the start it points into the segment, at the end out of it.
+        /// </summary>
+        public Vector3 EndDirection(StreetEnd end)
+        {
+            Spline spline = Spline;
+            if (spline == null || spline.Count < 2)
+            {
+                return transform.forward;
+            }
+
+            float3 tangent = spline.EvaluateTangent(end == StreetEnd.Start ? 0f : 1f);
+            Vector3 direction = transform.TransformDirection(new Vector3(tangent.x, tangent.y, tangent.z));
+
+            return direction.sqrMagnitude > 0.000001f ? direction.normalized : transform.forward;
+        }
+
+        /// <summary>
+        /// Collects the lanes that carry on from the lane leaving this segment at the given end.
+        ///
+        /// This is what a node is, expressed as a question rather than as an object: the connector
+        /// already knows the counterpart, and the counterpart already knows its lanes. Writing the
+        /// same relation down a second time as a graph would only create a second truth to keep in
+        /// step - the flat graph belongs in the baked asset, not here.
+        /// </summary>
+        public void CollectContinuations(StreetEnd end, List<StreetContinuation> results)
+        {
+            results.Clear();
+
+            StreetEndConnector connector = ConnectorAt(end);
+            if (connector == null || !connector.IsConnected)
+            {
+                return;
+            }
+
+            if (connector.socket != null)
+            {
+                CollectIntersectionContinuations(connector.socket, results);
+                return;
+            }
+
+            StreetSegment other = connector.segment;
+            if (other == null || other.Lanes.Count < 2)
+            {
+                return;
+            }
+
+            // Leaving at the other segment's start means carrying on along its spline, which is its
+            // forward lane; leaving at its end means running against the spline, so the backward one.
+            StreetLane lane = connector.segmentEnd == StreetEnd.Start ? other.Lanes[0] : other.Lanes[1];
+            results.Add(new StreetContinuation { space = other.transform, lane = lane });
+        }
+
+        private static void CollectIntersectionContinuations(IntersectionSocket socket, List<StreetContinuation> results)
+        {
+            Intersection intersection = socket.Owner;
+            if (intersection == null)
+            {
+                return;
+            }
+
+            int socketIndex = intersection.IndexOf(socket);
+            if (socketIndex < 0)
+            {
+                return;
+            }
+
+            for (int index = 0; index < intersection.Connections.Count; index++)
+            {
+                IntersectionConnection connection = intersection.Connections[index];
+                if (connection.FromSocket == socketIndex)
+                {
+                    results.Add(new StreetContinuation { space = intersection.transform, lane = connection.Lane });
+                }
+            }
+        }
+
+        private Spline Spline => splineContainer != null ? splineContainer.Spline : null;
+
+        /// <summary>
+        /// Pulls both driven ends onto whatever they dock to.
+        /// </summary>
+        /// <returns>True when a knot was actually moved.</returns>
+        private bool ApplyConnections()
+        {
+            if (splineContainer == null)
+            {
+                return false;
+            }
+
+            bool moved = ApplyConnection(startConnection, StreetEnd.Start);
+            moved |= ApplyConnection(endConnection, StreetEnd.End);
+            return moved;
+        }
+
+        private bool ApplyConnection(StreetEndConnector connector, StreetEnd end)
+        {
+            if (connector == null || !connector.IsConnected || !connector.driven)
+            {
+                return false;
+            }
+
+            Spline spline = Spline;
+            if (spline == null || spline.Count < 2)
+            {
+                return false;
+            }
+
+            if (!TryGetTarget(connector, end, out Vector3 worldPosition, out Vector3 worldDirection, out Vector3 worldUp))
+            {
+                return false;
+            }
+
+            Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
+            Vector3 localDirection = transform.InverseTransformDirection(worldDirection);
+            Vector3 localUp = transform.InverseTransformDirection(worldUp);
+
+            if (localDirection.sqrMagnitude < 0.000001f)
+            {
+                return false;
+            }
+
+            Quaternion rotation = StreetFrame.At(
+                new float3(localDirection.x, localDirection.y, localDirection.z),
+                new float3(localUp.x, localUp.y, localUp.z));
+
+            int index = end == StreetEnd.Start ? 0 : spline.Count - 1;
+
+            // A driven knot must not stay on AutoSmooth: Unity would pull its tangent back towards the
+            // neighbouring knot and the street would leave the intersection at an angle.
+            if (spline.GetTangentMode(index) != TangentMode.Continuous)
+            {
+                spline.SetTangentMode(index, TangentMode.Continuous);
+            }
+
+            BezierKnot knot = spline[index];
+            Vector3 currentPosition = new Vector3(knot.Position.x, knot.Position.y, knot.Position.z);
+            Quaternion currentRotation = new Quaternion(
+                knot.Rotation.value.x, knot.Rotation.value.y, knot.Rotation.value.z, knot.Rotation.value.w);
+
+            // Written only when it really differs. Otherwise every single tick would count as an edit
+            // and the scene would never stop being dirty.
+            if (Vector3.Distance(currentPosition, localPosition) < PositionEpsilon
+                && Quaternion.Angle(currentRotation, rotation) < RotationEpsilon)
+            {
+                return false;
+            }
+
+            knot.Position = new float3(localPosition.x, localPosition.y, localPosition.z);
+            knot.Rotation = new quaternion(rotation.x, rotation.y, rotation.z, rotation.w);
+
+            // The notifying setter, not SetKnotNoNotify. The quiet one writes the knot but never marks
+            // the spline dirty, so its cached length and per-curve arc length tables keep describing
+            // the old shape - the knot would follow the socket while everything derived from it, mesh
+            // and lanes included, stayed where it was.
+            //
+            // The change event does come back as one more rebuild. That settles by itself: the knot
+            // then already matches its target, the comparison above returns early, and nothing is
+            // written a second time.
+            spline.SetKnot(index, knot);
+            return true;
+        }
+
+        /// <summary>
+        /// Where this end has to sit and which way the spline has to run there.
+        /// </summary>
+        private bool TryGetTarget(
+            StreetEndConnector connector,
+            StreetEnd end,
+            out Vector3 position,
+            out Vector3 direction,
+            out Vector3 up)
+        {
+            position = Vector3.zero;
+            direction = Vector3.zero;
+            up = Vector3.up;
+
+            if (connector.socket != null)
+            {
+                Transform socket = connector.socket.transform;
+                position = socket.position;
+                up = socket.up;
+
+                // The socket points away from the intersection. A spline that ends there runs into it,
+                // so its tangent is the other way round; one that starts there runs along.
+                direction = end == StreetEnd.Start ? connector.socket.Outward : -connector.socket.Outward;
+                return true;
+            }
+
+            StreetSegment other = connector.segment;
+            if (other == null || other == this)
+            {
+                return false;
+            }
+
+            position = other.EndPosition(connector.segmentEnd);
+            up = other.transform.up;
+
+            // Two ends of the same kind meet head on, so one of the two tangents has to be flipped for
+            // the seam to stay smooth. Different kinds already run the same way.
+            Vector3 otherDirection = other.EndDirection(connector.segmentEnd);
+            direction = end == connector.segmentEnd ? -otherDirection : otherDirection;
+            return true;
         }
 
         /// <summary>
@@ -134,6 +379,9 @@ namespace CargoKing.Streets
                 return;
             }
 
+            // Before anything is measured: the connections move the spline itself, so lanes and mesh
+            // have to be derived from the shape it has after docking, not before.
+            ApplyConnections();
             MeasureCurve();
 
             if (sourceMesh == null)

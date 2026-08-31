@@ -29,6 +29,23 @@ namespace CargoKing.Streets
         /// <summary>Every way across, one per ordered pair of sockets minus the U turns.</summary>
         public IReadOnlyList<IntersectionConnection> Connections => connections;
 
+        /// <summary>
+        /// Position of a socket in the list, or -1 when it does not belong to this intersection. The
+        /// index is how a connection addresses a socket.
+        /// </summary>
+        public int IndexOf(IntersectionSocket socket)
+        {
+            for (int index = 0; index < sockets.Count; index++)
+            {
+                if (sockets[index] == socket)
+                {
+                    return index;
+                }
+            }
+
+            return -1;
+        }
+
         private void OnEnable()
         {
             isDirty = true;
