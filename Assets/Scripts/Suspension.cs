@@ -42,6 +42,14 @@ public class Suspension : MonoBehaviour
     public bool rollForceAtStopLimit;
 
     public bool isGrounded;
+
+    /// <summary>
+    /// How far the strut is extended: 0 fully compressed, 1 at rest length or in the air. The
+    /// anti roll bar reads it to see how far the two wheels of an axle have parted.
+    /// </summary>
+    public float ExtensionRatio => extensionRatio;
+
+    private float extensionRatio = 1f;
     private Vector3 _suspensionForcePointLocal;
     private Vector3 _tireForcePointLocal;
     private Vector3 _contactPointLocal;
@@ -93,6 +101,7 @@ public class Suspension : MonoBehaviour
             float force = CalculateSpringForce(offset, velocity);
 
             isGrounded = true;
+            extensionRatio = Mathf.Clamp01((hit.distance - wheelRadius) / restLength);
             _contactPointLocal = transform.InverseTransformPoint(hit.point);
 
             Vector3 springForcePoint = transform.position;
@@ -113,6 +122,7 @@ public class Suspension : MonoBehaviour
         {
             // Wheel in the air: reset the display values, or the old arrows stay put.
             isGrounded = false;
+            extensionRatio = 1f;
             _debugFrame = transform.rotation;
             suspensionForce = Vector3.zero;
             tireSlip = Vector3.zero;
@@ -169,7 +179,7 @@ public class Suspension : MonoBehaviour
         float desiredAcceleration = desiredVelocityChange / Time.fixedDeltaTime;
 
         float effMass = EffectiveMassAt(forcePoint, lateralAxis);
-        tireSlip = lateralAxis * (effMass * desiredAcceleration);
+        float lateralDemand = effMass * desiredAcceleration;
 
         // Rolling resistance is a constant force against the roll direction. Only a constant
         // force stops the car in finite time; damping proportional to v decays with v and
@@ -189,19 +199,28 @@ public class Suspension : MonoBehaviour
         brakeForceDemand = brakeInput * maxBrakeForce;
         rollResistanceLimit = rollingResistanceCoefficient * normalForce;
 
-        // A tire cannot pass on more than its share of the load allows.
+        // A tire cannot pass on more than its share of the load allows. This is the budget for
+        // everything the contact patch does, sideways and lengthways together.
         gripLimit = brakeFrictionCoefficient * normalForce;
         rollStopLimit = Mathf.Abs(forwardVel) * tireMass / Time.fixedDeltaTime;
 
         // Both are longitudinal resistive forces and are summed BEFORE the clamps. Clamped
         // separately they exceed the stopping impulse together - same failure as above.
-        float longitudinalDemand = brakeForceDemand + rollResistanceLimit;
-        float longitudinalMagnitude = Mathf.Min(longitudinalDemand, gripLimit);
-        longitudinalMagnitude = Mathf.Min(longitudinalMagnitude, rollStopLimit);
+        float longitudinalDemand = Mathf.Min(brakeForceDemand + rollResistanceLimit, rollStopLimit);
+        rollForceAtStopLimit = rollStopLimit < brakeForceDemand + rollResistanceLimit;
 
-        rollForceAtStopLimit = rollStopLimit < Mathf.Min(longitudinalDemand, gripLimit);
+        // Friction circle. One contact patch serves cornering and braking, so both draw on the
+        // same budget and are scaled down together when they ask for more than it holds.
+        //
+        // The lateral force used to have no limit at all - only the longitudinal part was checked
+        // against the load. A tire could therefore corner at any force its slip called for, the
+        // car pulled well over 1 g, and the load transfer that follows from that lifted the inside
+        // wheels off the road in nearly every bend.
+        float combined = Mathf.Sqrt(lateralDemand * lateralDemand + longitudinalDemand * longitudinalDemand);
+        float scale = combined > gripLimit && combined > 0f ? gripLimit / combined : 1f;
 
-        tireLongitudinalForce = -Mathf.Sign(forwardVel) * rollDirection * longitudinalMagnitude;
+        tireSlip = lateralAxis * (lateralDemand * scale);
+        tireLongitudinalForce = -Mathf.Sign(forwardVel) * rollDirection * (longitudinalDemand * scale);
         tireForce = tireSlip + tireLongitudinalForce;
 
         return tireForce;
