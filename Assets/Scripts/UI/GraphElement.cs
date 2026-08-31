@@ -3,25 +3,23 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 /// <summary>
-/// UI-Toolkit-Element, das eine oder mehrere Wertereihen als Liniengraph zeichnet.
-/// Gezeichnet wird mit der Vector-API (painter2D) - also ohne Textures und ohne
-/// zusaetzliche GameObjects.
+/// UI Toolkit element that draws one or more value series as a line graph, using the vector
+/// API (painter2D) - so no textures and no extra GameObjects.
 ///
-/// Direkte Benutzung:
-///     var graph = new GraphElement { graphTitle = "Antrieb" };
-///     var gas = graph.AddSeries("Gas", Color.green, 0f, 1f);
+/// Direct use:
+///     var graph = new GraphElement { graphTitle = "Drivetrain" };
+///     var gas = graph.AddSeries("Throttle", Color.green, 0f, 1f);
 ///     gas.Push(gasValue);
 ///     graph.Repaint();
 ///
-/// Fuer den schnellen Debug-Fall gibt es DebugGraph.Plot(...), das sich um Anlegen und
-/// Zeichnen selbst kuemmert.
+/// For the quick debug case there is DebugGraph.Plot(...), which creates and draws by itself.
 /// </summary>
 [UxmlElement]
 public partial class GraphElement : VisualElement
 {
     public const int DefaultCapacity = 600;
 
-    // Farben fuer automatisch vergebene Serien, in dieser Reihenfolge.
+    // Colours for automatically assigned series, in this order.
     private static readonly Color[] Palette =
     {
         new Color(0.40f, 0.85f, 0.35f),
@@ -91,7 +89,7 @@ public partial class GraphElement : VisualElement
         minLabel.style.bottom = 0;
         plotArea.Add(minLabel);
 
-        // Nach einem Layoutwechsel stimmt die Zeichenflaeche nicht mehr - neu zeichnen.
+        // After a layout change the plot area no longer matches - redraw.
         plotArea.RegisterCallback<GeometryChangedEvent>(_ => plotArea.MarkDirtyRepaint());
     }
 
@@ -102,7 +100,7 @@ public partial class GraphElement : VisualElement
         set { titleLabel.text = value; }
     }
 
-    /// <summary>Anzahl der waagerechten Rasterlinien-Abschnitte.</summary>
+    /// <summary>Number of horizontal grid line sections.</summary>
     [UxmlAttribute]
     public int gridLines
     {
@@ -119,19 +117,19 @@ public partial class GraphElement : VisualElement
         get { return series; }
     }
 
-    /// <summary>Serie mit festen Grenzen, etwa Gaspedal 0..1.</summary>
+    /// <summary>Series with fixed bounds, throttle 0..1 for instance.</summary>
     public GraphSeries AddSeries(string name, Color color, float min, float max, int capacity = DefaultCapacity)
     {
         return AddSeries(new GraphSeries(name, color, GraphRange.Fixed(min, max), capacity));
     }
 
-    /// <summary>Serie, deren Grenzen laufend aus den Daten im Fenster kommen.</summary>
+    /// <summary>Series whose bounds follow the data in the window.</summary>
     public GraphSeries AddSeries(string name, Color color, int capacity = DefaultCapacity)
     {
         return AddSeries(new GraphSeries(name, color, GraphRange.Auto(), capacity));
     }
 
-    /// <summary>Serie mit automatisch vergebener Farbe aus der Palette.</summary>
+    /// <summary>Series with a colour taken from the palette.</summary>
     public GraphSeries AddSeries(string name, int capacity = DefaultCapacity)
     {
         return AddSeries(name, NextPaletteColor(), capacity);
@@ -171,8 +169,8 @@ public partial class GraphElement : VisualElement
     }
 
     /// <summary>
-    /// Farbe Nummer index aus der Palette, umlaufend. Damit koennen auch Serien, die noch
-    /// keinem Graphen zugeordnet sind, gleich die passende Farbe bekommen.
+    /// Palette colour number index, wrapping around. Lets series that do not belong to a
+    /// graph yet pick the matching colour straight away.
     /// </summary>
     public static Color PaletteColor(int index)
     {
@@ -190,8 +188,8 @@ public partial class GraphElement : VisualElement
     }
 
     /// <summary>
-    /// Skalierung nachziehen, Beschriftung auffrischen und neu zeichnen. Einmal pro
-    /// Frame aufrufen - nicht pro gepushtem Wert.
+    /// Catches up the scaling, refreshes the labels and redraws. Call once per frame, not
+    /// once per pushed value.
     /// </summary>
     public void Repaint()
     {
@@ -210,9 +208,8 @@ public partial class GraphElement : VisualElement
         plotArea.MarkDirtyRepaint();
     }
 
-    // Eine Achsenbeschriftung ist nur eindeutig, solange genau eine Serie den Bereich
-    // vorgibt. Bei mehreren Serien mit unterschiedlichen Grenzen waere sie irrefuehrend -
-    // dann zeigt allein die Legende die Werte.
+    // An axis label is only unambiguous while exactly one series sets the range. With
+    // several series on different bounds it would mislead, and the legend shows the values.
     private void UpdateAxisLabels()
     {
         bool showAxis = series.Count == 1;
@@ -243,8 +240,8 @@ public partial class GraphElement : VisualElement
     {
         Rect rect = plotArea.contentRect;
 
-        // Vor dem ersten Layout ist die Groesse NaN, und unter zwei Pixeln gibt es nichts
-        // Sinnvolles zu zeichnen.
+        // Before the first layout the size is NaN, and under two pixels there is nothing
+        // sensible to draw.
         if (float.IsNaN(rect.width) || float.IsNaN(rect.height) || rect.width < 2f || rect.height < 2f)
         {
             return;
@@ -282,7 +279,7 @@ public partial class GraphElement : VisualElement
     {
         int count = current.Values.Count;
 
-        // Eine Linie braucht zwei Punkte.
+        // A line needs two points.
         if (count < 2)
         {
             return;
@@ -324,13 +321,13 @@ public partial class GraphElement : VisualElement
         }
         else
         {
-            // Zeitachse: der Abstand zweier Samples richtet sich nach der vollen Kapazitaet,
-            // damit die Linie beim Fuellen von rechts hereinwaechst statt sich zu stauchen.
+            // Time axis: the spacing of two samples follows the full capacity, so the line
+            // grows in from the right instead of squeezing itself together.
             float step = rect.width / Mathf.Max(1, current.Values.Capacity - 1);
             x = rect.xMax - (count - 1 - index) * step;
         }
 
-        // In UI Toolkit waechst Y nach unten, der Messwert aber nach oben.
+        // In UI Toolkit y grows downwards, the sample value upwards.
         float y = rect.yMax - current.Range.Normalize(current.Values[index]) * rect.height;
 
         return new Vector2(x, y);

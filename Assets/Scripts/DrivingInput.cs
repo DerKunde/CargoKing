@@ -1,5 +1,5 @@
 /// <summary>
-/// On physics step worth of driving commands.
+/// One physics step worth of driving commands.
 /// </summary>
 public readonly struct DrivingInput
 {
@@ -34,14 +34,26 @@ public readonly struct DrivingInput
     }
 
     /// <summary>
-    /// For cars which are currently not drivin. Every field at rest.
+    /// For cars that are not being driven. Every field at rest.
     /// </summary>
     public static DrivingInput None => default;
 }
 
+/// <summary>
+/// Possible gear change orders
+/// </summary>
 public enum GearShift
 {
+    /// <summary>
+    /// Stay in current gear
+    /// </summary>
     None = 0,
+    /// <summary>
+    /// Shift one gear up
+    /// </summary>
     Up,
+    /// <summary>
+    /// Shift one gear down
+    /// </summary>
     Down
 }

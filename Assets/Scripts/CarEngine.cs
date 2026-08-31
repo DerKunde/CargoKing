@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 public class CarEngine : MonoBehaviour
@@ -26,8 +25,6 @@ public class CarEngine : MonoBehaviour
     [Header("Calculated Values !!! Do not change !!!")]
     public float revolutionsPerMinute;
     public float speedInKmH;
-    public float calculatedTorque = 0f;
-    public float currentTimeOnPedle = 0f;
     public int currentGear = 1;
     public bool isOnGasPadle = false;
     public bool isClutchSlipping = false;
@@ -36,21 +33,19 @@ public class CarEngine : MonoBehaviour
 
     private float CalculateRPM(float currentSpeedMS, bool throttleApplied)
     {
-        float tireCircumference = 2 * (float)Math.PI * tireRadius;
+        float tireCircumference = 2 * Mathf.PI * tireRadius;
 
         float alignedSpeed = currentSpeedMS * DriveDirection;
         float tireRPM = (alignedSpeed / tireCircumference) * 60;
         float calculatedRPM = tireRPM * axleRatio * CurrentGearRation;
 
-        // Ungeklemmt festhalten: der Begrenzer muss wissen, wie weit das Getriebe
-        // ueber die Maximaldrehzahl hinausdreht. Nach dem Clamp unten waere das nicht
-        // mehr erkennbar.
+        // Kept unclamped: the limiter needs to know how far the gearbox overspeeds, which
+        // the clamp below would hide.
         gearboxRevolutions = calculatedRPM;
         revLimiterFactor = Mathf.Clamp01((maxRevolutions - calculatedRPM) / revLimiterFadeRange);
 
-        // Kupplung: unterhalb der Anfahrdrehzahl zieht das Getriebe den Motor nicht
-        // herunter. Sobald die Getriebedrehzahl die Anfahrdrehzahl ueberholt, greift
-        // die Untergrenze nicht mehr - der Uebergang ist stetig, ohne Sprung.
+        // Clutch: below the launch revolutions the gearbox does not drag the engine down.
+        // Once it passes them the lower limit stops applying, so the transition is smooth.
         isOnGasPadle = throttleApplied;
         isClutchSlipping = throttleApplied && calculatedRPM < launchRevolutions;
 

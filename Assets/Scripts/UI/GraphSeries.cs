@@ -1,13 +1,13 @@
 using UnityEngine;
 
 /// <summary>
-/// Eine Linie im Graphen: Messwerte, Skalierung und Darstellung.
+/// One line in a graph: samples, scaling and appearance.
 ///
-/// Zwei Betriebsarten:
-/// - Zeitachse (Standard): X ergibt sich aus der Position im Ringpuffer, der neueste Wert
-///   klebt am rechten Rand. Das ist der Fall fuer Live-Werte wie den Gaspedalweg.
-/// - Freie X-Achse: ueber Push(x, y). Damit laesst sich dieselbe Komponente auch fuer
-///   statische Kurven benutzen, etwa Drehmoment ueber Drehzahl.
+/// Two modes:
+/// - Time axis (default): x comes from the position in the ring buffer, the newest value
+///   sticks to the right edge. This is the case for live values such as throttle travel.
+/// - Free x axis, through Push(x, y). Lets the same component draw static curves as well,
+///   torque over revolutions for instance.
 /// </summary>
 public class GraphSeries
 {
@@ -16,14 +16,14 @@ public class GraphSeries
     public float LineWidth = 2f;
     public bool Visible = true;
 
-    // Zahlenformat fuer die Legende. "0.##" reicht fuer Gaspedal und Faktoren,
-    // fuer Drehzahlen ist "0" lesbarer.
+    // Number format for the legend. "0.##" is enough for throttle and factors, revolutions
+    // read better as "0".
     public string Format = "0.##";
 
     public readonly GraphBuffer Values;
     public readonly GraphRange Range;
 
-    // Bleibt null, solange die Serie auf der Zeitachse laeuft.
+    // Stays null while the series runs on the time axis.
     public GraphBuffer XValues;
     public GraphRange XRange;
 
@@ -51,8 +51,8 @@ public class GraphSeries
     }
 
     /// <summary>
-    /// Wert mit eigener X-Position. Der erste Aufruf legt die X-Achse an; ab dann laeuft
-    /// die Serie nicht mehr ueber die Zeit.
+    /// Value with its own x position. The first call creates the x axis; from then on the
+    /// series no longer runs over time.
     /// </summary>
     public void Push(float x, float y)
     {

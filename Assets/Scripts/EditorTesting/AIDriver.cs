@@ -154,7 +154,6 @@ public class AIDriver : MonoBehaviour
         float throttleInput = DrivingThrottle;
         float brakeInput = 0f;
 
-        //Determin when braking to start
         if (distanceToTarget <= CalculateBrakingDistance(carController.CarSpeedInMS()))
         {
             brakeInput = 1f;
@@ -168,8 +167,7 @@ public class AIDriver : MonoBehaviour
     private void DriveInReverse(float angleToDirection)
     {
         // Yaw rate is (v / wheelbase) * tan(steerAngle), so a negative v turns the car the
-        // other way for the same command. Inverting it keeps pulling the nose towards the
-        // target while the rear backs away from it - the three-point-turn motion.
+        // other way for the same command. Inverting keeps the nose pulling towards the target.
         float steerInput = -CalculateNeededSteeringInput(angleToDirection);
         carController.Drive(new DrivingInput(steerInput, DrivingThrottle, 0f, false, GearShift.None));
     }

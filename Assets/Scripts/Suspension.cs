@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 
 public class Suspension : MonoBehaviour
@@ -11,7 +10,6 @@ public class Suspension : MonoBehaviour
     public float springStrength = 300;
     public float damping = 25;
     public float tireGripFactor = 0.9f;
-    public float powerScale = 0.1f;
     [Header("Brakes")]
     public float maxBrakeForce = 2200f;
     public float brakeFrictionCoefficient = 0.9f;
@@ -60,12 +58,12 @@ public class Suspension : MonoBehaviour
         return transform.rotation * Quaternion.Inverse(_debugFrame) * frozenWorldVector;
     }
 
-    public Vector3 displaySuspensionForce  => ToCurrentPose(suspensionForce);
+    public Vector3 displaySuspensionForce => ToCurrentPose(suspensionForce);
     public Vector3 displayLateralAxis => ToCurrentPose(lateralAxis);
-    public Vector3 displayRollDirection     => ToCurrentPose(rollDirection);
+    public Vector3 displayRollDirection => ToCurrentPose(rollDirection);
     public Vector3 displayTireLongitudinalForce => ToCurrentPose(tireLongitudinalForce);
-    public Vector3 displayTireSlipForce     => ToCurrentPose(tireSlip);
-    public Vector3 displayTireForce         => ToCurrentPose(tireForce);
+    public Vector3 displayTireSlipForce => ToCurrentPose(tireSlip);
+    public Vector3 displayTireForce => ToCurrentPose(tireForce);
 
     void Awake()
     {
@@ -113,7 +111,7 @@ public class Suspension : MonoBehaviour
         }
         else
         {
-            // Rad in der Luft: Anzeige-Werte zuruecksetzen, sonst bleiben alte Pfeile stehen.
+            // Wheel in the air: reset the display values, or the old arrows stay put.
             isGrounded = false;
             _debugFrame = transform.rotation;
             suspensionForce = Vector3.zero;
@@ -132,7 +130,7 @@ public class Suspension : MonoBehaviour
     {
         float v = Vector3.Dot(rollDirection, tireWorldVelocity);
         float omega = v / wheelRadius;
-        float deltaDeg = omega * Time.fixedDeltaTime *  Mathf.Rad2Deg;
+        float deltaDeg = omega * Time.fixedDeltaTime * Mathf.Rad2Deg;
         _spinAngle = Mathf.Repeat(_spinAngle + deltaDeg, 360f);
         wheelmeshToRotate.localRotation = _baseLocalRotation * Quaternion.Euler(0f, -_spinAngle, 0f);
     }
@@ -162,68 +160,65 @@ public class Suspension : MonoBehaviour
 
     private Vector3 CalculateTireForces(Vector3 forcePoint)
     {
-    lateralAxis = wheelMesh.up;
-    rollDirection     = wheelMesh.forward;
-    tireWorldVelocity = carBody.GetPointVelocity(forcePoint);
+        lateralAxis = wheelMesh.up;
+        rollDirection = wheelMesh.forward;
+        tireWorldVelocity = carBody.GetPointVelocity(forcePoint);
 
-    float steeringValue        = Vector3.Dot(lateralAxis, tireWorldVelocity);
-    float desiredVelocityChange = -steeringValue * tireGripFactor;
-    float desiredAcceleration   = desiredVelocityChange / Time.fixedDeltaTime;
+        float steeringValue = Vector3.Dot(lateralAxis, tireWorldVelocity);
+        float desiredVelocityChange = -steeringValue * tireGripFactor;
+        float desiredAcceleration = desiredVelocityChange / Time.fixedDeltaTime;
 
-    float effMass = EffectiveMassAt(forcePoint, lateralAxis);
-    tireSlip = lateralAxis * (effMass * desiredAcceleration);
+        float effMass = EffectiveMassAt(forcePoint, lateralAxis);
+        tireSlip = lateralAxis * (effMass * desiredAcceleration);
 
-    // Rollwiderstand: konstante Kraft entgegen der Rollrichtung. Nur eine konstante
-    // Kraft bringt das Auto in endlicher Zeit zum Stehen - eine geschwindigkeits-
-    // proportionale Daempfung faellt mit v gegen Null und kriecht ewig weiter.
-    float forwardVel  = Vector3.Dot(rollDirection, tireWorldVelocity);
-    float normalForce = Mathf.Max(0f, suspensionForce.y);
+        // Rolling resistance is a constant force against the roll direction. Only a constant
+        // force stops the car in finite time; damping proportional to v decays with v and
+        // creeps on forever.
+        float forwardVel = Vector3.Dot(rollDirection, tireWorldVelocity);
+        float normalForce = Mathf.Max(0f, suspensionForce.y);
 
-    // Anti-Rueckwaerts-Clamp: nie mehr Kraft als noetig, um forwardVel in diesem Schritt
-    // auf Null zu bringen. Ohne das schiebt der Rollwiderstand das stehende Auto
-    // rueckwaerts und es zittert um Null. Bei forwardVel == 0 wird stopForce == 0, damit
-    // spielt auch Mathf.Sign(0) == 1 keine Rolle mehr.
-    //
-    // Bezugsmasse ist tireMass (= carBody.mass / 4), NICHT EffectiveMassAt: hier wirken
-    // vier Raeder gleichzeitig auf denselben Koerper, jedes darf also nur seinen Anteil
-    // am Gesamtimpuls beanspruchen. Mit EffectiveMassAt (5.6 kg pro Rad bei 10 kg Auto)
-    // bremsen die vier zusammen mit dem 2.2-fachen des noetigen Impulses und das Auto
-    // schwingt um Null. Sind Raeder in der Luft, wird untersteuert geklemmt - unkritisch.
-    brakeForceDemand    = brakeInput * maxBrakeForce;
-    rollResistanceLimit = rollingResistanceCoefficient * normalForce;
+        // Anti-reversal clamp below: never more force than it takes to bring forwardVel to
+        // zero this step, otherwise the resistance pushes the standing car backwards and it
+        // jitters around zero. At forwardVel == 0 the limit is 0, so Mathf.Sign(0) == 1
+        // does no harm.
+        //
+        // Reference mass is tireMass (= carBody.mass / 4), NOT EffectiveMassAt: four wheels
+        // act on the same body, so each may only claim its quarter of the total impulse.
+        // With EffectiveMassAt the four together brake with a multiple of the needed
+        // impulse and the car oscillates.
+        brakeForceDemand = brakeInput * maxBrakeForce;
+        rollResistanceLimit = rollingResistanceCoefficient * normalForce;
 
-    // A tire cannot pass on more than its share of the load allows.
-    gripLimit     = brakeFrictionCoefficient * normalForce;
-    rollStopLimit = Mathf.Abs(forwardVel) * tireMass / Time.fixedDeltaTime;
+        // A tire cannot pass on more than its share of the load allows.
+        gripLimit = brakeFrictionCoefficient * normalForce;
+        rollStopLimit = Mathf.Abs(forwardVel) * tireMass / Time.fixedDeltaTime;
 
-    // Braking and rolling resistance are both longitudinal resistive forces, so they
-    // are summed BEFORE the clamps. Clamping each one on its own lets the two exceed
-    // the stopping impulse together and the car jitters around zero - the same
-    // failure the reference mass note above describes for four wheels acting at once.
-    float longitudinalDemand    = brakeForceDemand + rollResistanceLimit;
-    float longitudinalMagnitude = Mathf.Min(longitudinalDemand, gripLimit);
-    longitudinalMagnitude       = Mathf.Min(longitudinalMagnitude, rollStopLimit);
+        // Both are longitudinal resistive forces and are summed BEFORE the clamps. Clamped
+        // separately they exceed the stopping impulse together - same failure as above.
+        float longitudinalDemand = brakeForceDemand + rollResistanceLimit;
+        float longitudinalMagnitude = Mathf.Min(longitudinalDemand, gripLimit);
+        longitudinalMagnitude = Mathf.Min(longitudinalMagnitude, rollStopLimit);
 
-    rollForceAtStopLimit = rollStopLimit < Mathf.Min(longitudinalDemand, gripLimit);
+        rollForceAtStopLimit = rollStopLimit < Mathf.Min(longitudinalDemand, gripLimit);
 
-    tireLongitudinalForce = -Mathf.Sign(forwardVel) * rollDirection * longitudinalMagnitude;
-    tireForce             = tireSlip + tireLongitudinalForce;
+        tireLongitudinalForce = -Mathf.Sign(forwardVel) * rollDirection * longitudinalMagnitude;
+        tireForce = tireSlip + tireLongitudinalForce;
 
-    return tireForce;
+        return tireForce;
     }
 
     private float EffectiveMassAt(Vector3 point, Vector3 dir)
     {
-    Vector3 r    = point - carBody.worldCenterOfMass;
-    Vector3 rxd  = Vector3.Cross(r, dir);
+        Vector3 r = point - carBody.worldCenterOfMass;
+        Vector3 rxd = Vector3.Cross(r, dir);
 
-    Quaternion tensorRot = carBody.rotation * carBody.inertiaTensorRotation;
-    Vector3 local        = Quaternion.Inverse(tensorRot) * rxd;
-    Vector3 it           = carBody.inertiaTensor;
-    Vector3 scaled       = new Vector3(local.x / it.x, local.y / it.y, local.z / it.z);
+        Quaternion tensorRot = carBody.rotation * carBody.inertiaTensorRotation;
+        Vector3 local = Quaternion.Inverse(tensorRot) * rxd;
+        Vector3 it = carBody.inertiaTensor;
+        Vector3 scaled = new Vector3(local.x / it.x, local.y / it.y, local.z / it.z);
 
-    float angular = Vector3.Dot(rxd, tensorRot * scaled);
-    return 1f / (1f / carBody.mass + angular);
+        float angular = Vector3.Dot(rxd, tensorRot * scaled);
+        return 1f / (1f / carBody.mass + angular);
     }
 
     public void SetBrakeInput(float value)
@@ -233,7 +228,7 @@ public class Suspension : MonoBehaviour
 
     public float AvailableBrakeForce()
     {
-        if(!isGrounded) return 0f;
+        if (!isGrounded) return 0f;
 
         float normalForce = Mathf.Max(0f, suspensionForce.y);
         float demand = maxBrakeForce + rollingResistanceCoefficient * normalForce;

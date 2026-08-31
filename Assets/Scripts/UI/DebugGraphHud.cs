@@ -4,11 +4,11 @@ using UnityEngine.InputSystem;
 using UnityEngine.UIElements;
 
 /// <summary>
-/// Zeigt alle ueber DebugGraph angemeldeten Graphen als Overlay im Play Mode.
+/// Shows every graph registered through DebugGraph as an overlay in Play Mode.
 ///
-/// Aufbau in der Szene: ein leeres GameObject, darauf diese Komponente. Das UIDocument
-/// kommt per RequireComponent automatisch dazu und braucht nur noch ein PanelSettings-Asset.
-/// Sonst ist nichts zu verdrahten - die Graphen entstehen aus den Plot-Aufrufen selbst.
+/// Setup in the scene: an empty GameObject with this component. RequireComponent brings the
+/// UIDocument along, which only needs a PanelSettings asset. Nothing else to wire up - the
+/// graphs come out of the Plot calls themselves.
 /// </summary>
 [RequireComponent(typeof(UIDocument))]
 public class DebugGraphHud : MonoBehaviour
@@ -29,7 +29,7 @@ public class DebugGraphHud : MonoBehaviour
     private readonly Dictionary<string, GraphElement> graphs = new Dictionary<string, GraphElement>();
     private readonly List<string> staleGraphNames = new List<string>();
 
-    // DebugGraph.Revision startet bei 0, also muss der erste Abgleich in jedem Fall laufen.
+    // DebugGraph.Revision starts at 0, so the first sync has to run in any case.
     private int knownRevision = -1;
 
     private void Awake()
@@ -39,8 +39,8 @@ public class DebugGraphHud : MonoBehaviour
 
     private void OnDisable()
     {
-        // Das UIDocument wirft seinen Baum beim Deaktivieren weg. Die Referenzen zeigen
-        // danach ins Leere, deshalb hier zuruecksetzen und beim naechsten Mal neu aufbauen.
+        // The UIDocument throws its tree away on deactivation, leaving the references
+        // dangling. Reset here and rebuild on the next pass.
         container = null;
         graphs.Clear();
         knownRevision = -1;
@@ -91,8 +91,8 @@ public class DebugGraphHud : MonoBehaviour
     }
 
     /// <summary>
-    /// Liefert false, solange das UIDocument noch keinen Baum hat - das passiert im ersten
-    /// Frame je nach Ausfuehrungsreihenfolge.
+    /// Returns false while the UIDocument has no tree yet - which happens in the first
+    /// frame, depending on execution order.
     /// </summary>
     private bool EnsureContainer()
     {
@@ -116,13 +116,13 @@ public class DebugGraphHud : MonoBehaviour
 
         container = new VisualElement();
 
-        // Das Overlay darf keine Klicks abfangen - darunter liegt das Spiel.
+        // The overlay must not swallow clicks - the game is underneath.
         container.pickingMode = PickingMode.Ignore;
         container.style.position = Position.Absolute;
         ApplyContainerLayout();
         root.Add(container);
 
-        // Der Baum ist neu, die vorher gemerkten Elemente gehoeren zum alten.
+        // The tree is new, so the elements remembered before belong to the old one.
         graphs.Clear();
         knownRevision = -1;
 
@@ -166,8 +166,7 @@ public class DebugGraphHud : MonoBehaviour
                 graphs.Add(channel.Name, graph);
             }
 
-            // Serien koennen jederzeit dazukommen, wenn irgendwo ein neuer Plot-Aufruf
-            // zum ersten Mal laeuft.
+            // Series can appear at any time, whenever a new Plot call runs for the first time.
             for (int s = 0; s < channel.Series.Count; s++)
             {
                 GraphSeries series = channel.Series[s];

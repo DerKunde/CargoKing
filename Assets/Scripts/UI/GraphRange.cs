@@ -1,17 +1,16 @@
 using System;
 
 /// <summary>
-/// Bildet einen Messbereich auf 0..1 ab - also auf die Hoehe der Zeichenflaeche.
-/// Entweder mit festen Grenzen (Gaspedal 0..1, Drehzahl 0..6500) oder automatisch aus
-/// den Daten im Fenster.
+/// Maps a measuring range onto 0..1, that is onto the height of the plot area. Either with
+/// fixed bounds (throttle 0..1, revolutions 0..6500) or automatically from the data in the
+/// window.
 ///
-/// Bewusst frei von UnityEngine, damit die Rechnung ausserhalb des Editors testbar bleibt.
+/// Deliberately free of UnityEngine, so the maths stays testable outside the editor.
 /// </summary>
 public class GraphRange
 {
-    // Mindestbreite eines automatisch ermittelten Bereichs. Ohne sie faellt der Bereich
-    // bei konstanten Werten auf Null zusammen und die Beschriftung zeigte zweimal
-    // denselben Wert.
+    // Minimum width of an automatic range. Without it the range collapses to zero on
+    // constant values and the labels would show the same number twice.
     private const float MinimumAutoSpan = 1f;
 
     public float Min;
@@ -25,13 +24,12 @@ public class GraphRange
 
     public static GraphRange Auto()
     {
-        // Startbereich, bis der erste Wert eintrifft.
+        // Starting range until the first value arrives.
         return new GraphRange { Min = 0f, Max = 1f, AutoScale = true };
     }
 
     /// <summary>
-    /// Zieht die Grenzen bei AutoScale auf das aktuelle Datenfenster nach. Feste Grenzen
-    /// bleiben unangetastet.
+    /// Follows the current data window while AutoScale is on. Fixed bounds are left alone.
     /// </summary>
     public void ResolveFrom(GraphBuffer buffer)
     {
@@ -49,7 +47,7 @@ public class GraphRange
         float span = max - min;
         if (span < MinimumAutoSpan)
         {
-            // Um die Mitte der Daten herum aufspannen, damit die Linie mittig liegt.
+            // Spread around the centre of the data so the line sits in the middle.
             float center = (min + max) * 0.5f;
             min = center - MinimumAutoSpan * 0.5f;
             max = center + MinimumAutoSpan * 0.5f;
@@ -60,14 +58,14 @@ public class GraphRange
     }
 
     /// <summary>
-    /// Wert auf 0..1 abbilden. Werte ausserhalb der Grenzen werden geklemmt, damit die
-    /// Linie nicht aus der Zeichenflaeche laeuft.
+    /// Maps a value onto 0..1. Values outside the bounds are clamped so the line cannot
+    /// run out of the plot area.
     /// </summary>
     public float Normalize(float value)
     {
         float span = Max - Min;
 
-        // Entarteter Bereich: keine Division durch Null, sondern flach in die Mitte.
+        // Degenerate range: no division by zero, flat through the middle instead.
         if (Math.Abs(span) < float.Epsilon)
         {
             return 0.5f;
