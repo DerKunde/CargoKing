@@ -1,18 +1,17 @@
 using System;
 
 /// <summary>
-/// Ringpuffer fester Groesse fuer Messwerte. Sobald er voll ist, verdraengt jeder neue
-/// Wert den aeltesten - das Fenster wandert also mit und der Graph zeigt immer die
-/// letzten Capacity Samples.
+/// Fixed size ring buffer for samples. Once it is full every new value displaces the
+/// oldest, so the window moves along and the graph always shows the last Capacity samples.
 ///
-/// Bewusst frei von UnityEngine: die Klasse ist reine Rechenlogik und laesst sich damit
-/// ausserhalb des Editors kompilieren und testen.
+/// Deliberately free of UnityEngine: pure computation, so it compiles and can be tested
+/// outside the editor.
 /// </summary>
 public class GraphBuffer
 {
     private readonly float[] samples;
 
-    // Schreibposition fuer den naechsten Wert. Laeuft im Kreis.
+    // Write position for the next value. Wraps around.
     private int head;
     private int count;
 
@@ -37,8 +36,8 @@ public class GraphBuffer
     }
 
     /// <summary>
-    /// Index 0 ist der aelteste noch gespeicherte Wert, Count-1 der neueste. Der Aufrufer
-    /// muss dadurch nichts von der Schreibposition im Ring wissen.
+    /// Index 0 is the oldest stored value, Count-1 the newest, so the caller never has to
+    /// know where the write position sits in the ring.
     /// </summary>
     public float this[int index]
     {
@@ -71,8 +70,8 @@ public class GraphBuffer
     }
 
     /// <summary>
-    /// Kleinster und groesster Wert im aktuellen Fenster. Liefert false, solange noch kein
-    /// Wert vorliegt - dann gibt es schlicht nichts zu skalieren.
+    /// Smallest and largest value in the current window. Returns false while no value has
+    /// arrived yet - then there is simply nothing to scale.
     /// </summary>
     public bool TryGetMinMax(out float min, out float max)
     {
@@ -104,8 +103,8 @@ public class GraphBuffer
         return true;
     }
 
-    // Solange der Puffer nicht voll ist, steht der aelteste Wert bei 0. Danach steht er
-    // genau dort, wo als naechstes geschrieben wird.
+    // While the buffer is not full the oldest value sits at 0. Afterwards it sits exactly
+    // where the next write goes.
     private int RingIndexOf(int index)
     {
         int oldest = count == samples.Length ? head : 0;

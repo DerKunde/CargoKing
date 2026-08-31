@@ -1,5 +1,5 @@
 /// <summary>
-/// On physics step worth of driving commands.
+/// One physics step worth of driving commands.
 /// </summary>
 public readonly struct DrivingInput
 {
@@ -34,7 +34,7 @@ public readonly struct DrivingInput
     }
 
     /// <summary>
-    /// For cars which are currently not drivin. Every field at rest.
+    /// For cars that are not being driven. Every field at rest.
     /// </summary>
     public static DrivingInput None => default;
 }

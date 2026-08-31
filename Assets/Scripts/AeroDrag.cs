@@ -1,13 +1,12 @@
 using UnityEngine;
 
 /// <summary>
-/// Luftwiderstand des Fahrzeugs: F = 0.5 * rho * Cd * A * v^2, entgegen der
-/// Bewegungsrichtung. Greift am Fahrzeug an, nicht am einzelnen Rad - deshalb eine
-/// eigene Komponente statt eines Anbaus an Suspension.
+/// Air resistance: F = 0.5 * rho * Cd * A * v^2, against the direction of travel. Acts on
+/// the car rather than on a single wheel, which is why it is a component of its own.
 ///
-/// Ersetzt Unitys linearDamping, das linear in v ist und damit bei kleinen
-/// Geschwindigkeiten zu stark und bei grossen zu schwach bremst. Wichtig: linearDamping
-/// am Rigidbody auf 0 setzen, sonst wirken beide.
+/// Replaces Unity's linearDamping, which is linear in v and therefore brakes too hard at
+/// low speed and too weakly at high speed. Set linearDamping to 0 on the Rigidbody,
+/// otherwise both are applied.
 /// </summary>
 public class AeroDrag : MonoBehaviour
 {
@@ -15,9 +14,9 @@ public class AeroDrag : MonoBehaviour
     public Rigidbody carBody;
 
     [Header("Luftwiderstand")]
-    public float airDensity = 1.225f;       // kg/m^3, Meereshoehe bei 15 Grad
-    public float dragCoefficient = 0.33f;   // Cd, typisch fuer einen Kleinwagen
-    public float frontalArea = 2.0f;        // m^2, Stirnflaeche
+    public float airDensity = 1.225f;       // kg/m^3, sea level at 15 degrees
+    public float dragCoefficient = 0.33f;   // Cd, typical for a small car
+    public float frontalArea = 2.0f;        // m^2
 
     [Header("Debug (nur Anzeige)")]
     public float speedKmH;
@@ -50,13 +49,13 @@ public class AeroDrag : MonoBehaviour
             return;
         }
 
-        // Bewusst gegen die tatsaechliche Bewegungsrichtung, nicht gegen transform.forward:
-        // beim Driften oder Rueckwaertsrollen soll der Widerstand auch dort bremsen.
+        // Against the actual direction of travel, not transform.forward: while drifting or
+        // rolling backwards the drag has to brake there as well.
         dragForceNewton = 0.5f * airDensity * dragCoefficient * frontalArea * speed * speed;
         dragForce = -(velocity / speed) * dragForceNewton;
 
-        // Ein Anti-Rueckwaerts-Clamp wie beim Rollwiderstand ist hier unnoetig: die Kraft
-        // faellt quadratisch mit v, ein Ueberschwingen waere erst bei ~99000 m/s moeglich.
+        // No anti-reversal clamp as in the rolling resistance: the force grows with v^2,
+        // so overshooting a standstill would take about 99000 m/s.
         carBody.AddForce(dragForce, ForceMode.Force);
     }
 }

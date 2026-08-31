@@ -121,22 +121,6 @@ public class CarDrivingInput : MonoBehaviour
         handbrake = actions.Driving.Handbrake.IsPressed();
     }
 
-    /// <summary>Reports a request to shift up and consumes it, so one press counts once.</summary>
-    public bool ConsumeShiftUp()
-    {
-        bool pending = shiftUpPending;
-        shiftUpPending = false;
-        return pending;
-    }
-
-    /// <summary>Same as <see cref="ConsumeShiftUp"/>, but downwards.</summary>
-    public bool ConsumeShiftDown()
-    {
-        bool pending = shiftDownPending;
-        shiftDownPending = false;
-        return pending;
-    }
-
     /// <summary>Reports a reset request and consumes it in the process.</summary>
     public bool ConsumeReset()
     {

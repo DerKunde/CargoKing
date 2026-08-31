@@ -1,8 +1,8 @@
 using UnityEngine;
 
 /// <summary>
-/// Reine Anzeige-Komponente. Rechnet keine Physik, sondern liest ausschliesslich
-/// die Felder aus Suspension und zeichnet sie als Gizmo-Pfeile.
+/// Display only. Runs no physics, it just reads the fields of Suspension and draws them
+/// as gizmo arrows.
 /// </summary>
 public class VisualizeWheelForces : MonoBehaviour
 {
@@ -11,10 +11,10 @@ public class VisualizeWheelForces : MonoBehaviour
     public Suspension suspension;
 
     [Header("Darstellung")]
-    // Richtungen sind Einheitsvektoren und bekommen eine feste Laenge.
+    // Directions are unit vectors and get a fixed length.
     public float directionLength = 0.4f;
-    // Kraefte sind in Newton und werden logarithmisch abgebildet, weil sie ueber
-    // mehrere Groessenordnungen laufen. referenceForce ist der Bezugspunkt.
+    // Forces are in newton and mapped logarithmically, because they span several orders
+    // of magnitude. referenceForce is the anchor point.
     public float baseLength = 0.35f;
     public float referenceForce = 10f;
     public float maxLength = 1.5f;
@@ -33,8 +33,8 @@ public class VisualizeWheelForces : MonoBehaviour
     public Color lateralAxisColor = Color.cyan;
     public Color rollDirectionColor = Color.blue;
     public Color tireRollForceColor = new Color(1f, 0.55f, 0.1f);
-    // Andere Farbe, solange nicht der Reibwert die Kraft begrenzt, sondern der
-    // Anti-Rueckwaerts-Clamp - also genau in den letzten Metern vor dem Stillstand.
+    // Different colour while the force is capped by the anti-reversal clamp rather than
+    // by grip - so exactly in the last metres before standstill.
     public Color tireRollForceClampedColor = Color.yellow;
     public Color tireSlipForceColor = Color.red;
     public Color tireForceColor = Color.magenta;
@@ -55,12 +55,12 @@ public class VisualizeWheelForces : MonoBehaviour
             return;
         }
 
-        // Radmitte: Bezugspunkt fuer die Richtungspfeile.
+        // Wheel centre: reference point for the direction arrows.
         Vector3 wheelCenter = wheelOrigin.position;
         Gizmos.color = Color.magenta;
         Gizmos.DrawSphere(wheelCenter, 0.04f);
 
-        // Aufstandspunkt, so wie ihn der Raycast in Suspension gefunden hat.
+        // Contact point as the raycast in Suspension found it.
         if (suspension.isGrounded)
         {
             Gizmos.color = contactPointColor;
@@ -74,7 +74,7 @@ public class VisualizeWheelForces : MonoBehaviour
         tireSlipForceNewton = suspension.tireSlip.magnitude;
         tireForceNewton = suspension.tireForce.magnitude;
 
-        // Richtungen gehoeren an die Radmitte, Kraefte an ihren jeweiligen Angriffspunkt.
+        // Directions belong at the wheel centre, forces at their point of application.
         if (showRollDirection)
         {
             DrawArrow(wheelCenter, suspension.displayRollDirection, directionLength, rollDirectionColor);

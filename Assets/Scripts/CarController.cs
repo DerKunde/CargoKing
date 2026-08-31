@@ -52,8 +52,8 @@ public class CarController : MonoBehaviour
     {
         if(shift != GearShift.None)
         {
-            // speedInKmH is km/h and is written further down in Drive(), so it was both
-            // the wrong unit and a frame stale. ChangeGear wants m/s.
+            // ChangeGear wants m/s. Not carEngine.speedInKmH: wrong unit, and it is only
+            // written further down in Drive().
             carEngine.ChangeGear(shift, CarSpeedInMS());
         }
     }
@@ -67,9 +67,9 @@ public class CarController : MonoBehaviour
 
     private void ApplyBraking(float brake)
     {
-        // Handed over every step, not only while the pedal is down - letting go has
-        // to reach the wheels as well. The force itself is built in Suspension, where
-        // normal force and contact point are known.
+        // Handed over every step, not only while the pedal is down - letting go has to reach
+        // the wheels too. Suspension builds the force, where normal force and contact point
+        // are known.
         foreach (Suspension wheel in brakedWheels)
         {
             wheel.SetBrakeInput(brake);
