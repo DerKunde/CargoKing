@@ -39,9 +39,21 @@ public readonly struct DrivingInput
     public static DrivingInput None => default;
 }
 
+/// <summary>
+/// Possible gear change orders
+/// </summary>
 public enum GearShift
 {
+    /// <summary>
+    /// Stay in current gear
+    /// </summary>
     None = 0,
+    /// <summary>
+    /// Shift one gear up
+    /// </summary>
     Up,
+    /// <summary>
+    /// Shift one gear down
+    /// </summary>
     Down
 }
