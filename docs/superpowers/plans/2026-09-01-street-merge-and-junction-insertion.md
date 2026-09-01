@@ -867,6 +867,23 @@ In `CreateStreet` den Block ab `StreetSnapping.Connect(segment, StreetEnd.Start,
             }
 ```
 
+Der Anfasser allein reicht nicht. `OnSceneGUI` ruft `DrawEndHandle` zweimal, und `DrawEndHandle` liest `segment.EndPosition(end)` ganz oben, vor jeder Absicherung. Verschmilzt der Start-Aufruf, läuft der End-Aufruf auf dem zerstörten Objekt. Deshalb zusätzlich in `OnSceneGUI` zwischen die beiden Aufrufe:
+
+```csharp
+            DrawEndHandle(segment, StreetEnd.Start);
+
+            // A merge committed by the Start handle destroys this editor's own target, and the End
+            // handle would then read a destroyed object. Unity's overloaded == reports that.
+            if (segment == null)
+            {
+                return;
+            }
+
+            DrawEndHandle(segment, StreetEnd.End);
+```
+
+Jede weitere Zeichnung, die später hier angehängt wird, gehört unter diese Absicherung.
+
 - [ ] **Step 4: Kompilieren**
 
 `dotnet build`. Erwartet: erfolgreich.
