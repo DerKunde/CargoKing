@@ -228,13 +228,16 @@ namespace CargoKing.Streets.Editor
                 StreetEnd.Start,
                 new StreetSnapTarget { socket = socket, position = socket.transform.position });
 
+            // Docking the far end to another street merges the two, and the object that survives is
+            // the other one. Everything after this point has to talk about the survivor.
+            StreetSegment survivor = segment;
             if (farEnd.IsValid)
             {
-                StreetSnapping.Connect(segment, StreetEnd.End, farEnd);
+                survivor = StreetSnapping.Connect(segment, StreetEnd.End, farEnd) ?? segment;
             }
 
-            segment.Rebuild();
-            Selection.activeGameObject = street;
+            survivor.Rebuild();
+            Selection.activeGameObject = survivor.gameObject;
 
             // Hand straight over to Unity's own draw tool so the road can be carried on without
             // switching tools by hand. Only while the far end is still open: past a docked end the new

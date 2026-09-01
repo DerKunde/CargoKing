@@ -129,13 +129,24 @@ namespace CargoKing.Streets.Editor
         }
 
         /// <summary>
-        /// Docks one end of a segment to a target.
+        /// Docks one end of a segment to a target. Docking to another segment merges the two.
         /// </summary>
-        public static void Connect(StreetSegment segment, StreetEnd end, StreetSnapTarget target)
+        /// <returns>
+        /// The segment that carries the connection afterwards. Merging returns the survivor, which is
+        /// not the segment that was passed in. Null when nothing happened.
+        /// </returns>
+        public static StreetSegment Connect(StreetSegment segment, StreetEnd end, StreetSnapTarget target)
         {
             if (!target.IsValid)
             {
-                return;
+                return null;
+            }
+
+            // Two streets meeting no longer stay two objects that reference each other - they become
+            // one street with one spline.
+            if (target.socket == null)
+            {
+                return StreetSurgery.Merge(segment, end, target.segment, target.segmentEnd);
             }
 
             Undo.RecordObject(segment, "Connect Street");
@@ -143,31 +154,12 @@ namespace CargoKing.Streets.Editor
             StreetEndConnector connector = segment.ConnectorAt(end);
             connector.Clear();
             connector.driven = true;
-
-            if (target.socket != null)
-            {
-                connector.socket = target.socket;
-            }
-            else
-            {
-                connector.segment = target.segment;
-                connector.segmentEnd = target.segmentEnd;
-
-                // The counterpart records the seam as well, but is not driven by it. Exactly one side
-                // of a seam moves, otherwise the two would chase each other every frame.
-                Undo.RecordObject(target.segment, "Connect Street");
-
-                StreetEndConnector counterpart = target.segment.ConnectorAt(target.segmentEnd);
-                counterpart.Clear();
-                counterpart.driven = false;
-                counterpart.segment = segment;
-                counterpart.segmentEnd = end;
-
-                EditorUtility.SetDirty(target.segment);
-            }
+            connector.socket = target.socket;
 
             EditorUtility.SetDirty(segment);
             segment.Rebuild();
+
+            return segment;
         }
 
         /// <summary>

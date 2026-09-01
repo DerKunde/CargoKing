@@ -168,16 +168,23 @@ namespace CargoKing.Streets.Editor
             // another one does not leave a connection behind.
             if (Event.current.type == EventType.MouseUp)
             {
-                if (candidate.IsValid)
-                {
-                    StreetSnapping.Connect(segment, end, candidate);
-                }
-                else
+                isDragging = false;
+
+                if (!candidate.IsValid)
                 {
                     StreetSnapping.Disconnect(segment, end);
+                    return;
                 }
 
-                isDragging = false;
+                StreetSegment survivor = StreetSnapping.Connect(segment, end, candidate);
+
+                // Docking to another street merges the two, and this editor's own target is the one
+                // that goes. Anything drawn after this point would touch a destroyed object.
+                if (survivor != null && survivor != segment)
+                {
+                    Selection.activeGameObject = survivor.gameObject;
+                    return;
+                }
             }
         }
 
