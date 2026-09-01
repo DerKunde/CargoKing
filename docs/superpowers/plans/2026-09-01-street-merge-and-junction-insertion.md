@@ -1664,7 +1664,7 @@ namespace CargoKing.Streets.Editor
 
 - [ ] **Step 4: Kompilieren und Tests laufen lassen**
 
-Erwartet: siebenundzwanzig grüne Tests.
+Erwartet: achtundzwanzig grüne Tests.
 
 - [ ] **Step 5: Commit**
 
