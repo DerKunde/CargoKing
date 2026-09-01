@@ -747,7 +747,7 @@ Dann `Merge` selbst:
 
 - [ ] **Step 4: Kompilieren und Tests laufen lassen**
 
-Erwartet: vierzehn grüne Tests.
+Erwartet: fünfzehn grüne Tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1073,7 +1073,7 @@ git commit -m "feat(streets): connecting two streets merges them"
 
 - [ ] **Step 4: Kompilieren und Tests laufen lassen**
 
-Erwartet: achtzehn grüne Tests.
+Erwartet: neunzehn grüne Tests.
 
 - [ ] **Step 5: Commit**
 
@@ -1331,7 +1331,7 @@ namespace CargoKing.Streets.Editor
 
 - [ ] **Step 4: Kompilieren und Tests laufen lassen**
 
-Erwartet: einundzwanzig grüne Tests.
+Erwartet: zweiundzwanzig grüne Tests.
 
 - [ ] **Step 5: Die Einträge im Inspector prüfen lassen**
 
@@ -1640,7 +1640,7 @@ namespace CargoKing.Streets.Editor
 
 - [ ] **Step 4: Kompilieren und Tests laufen lassen**
 
-Erwartet: sechsundzwanzig grüne Tests.
+Erwartet: siebenundzwanzig grüne Tests.
 
 - [ ] **Step 5: Commit**
 
