@@ -49,6 +49,7 @@ namespace CargoKing.Streets.Editor
             StreetSegment segment = (StreetSegment)target;
 
             EditorGUILayout.Space();
+            StreetDrawing.DrawInspectorNotice();
             DrawTileReadout(segment);
             DrawCurveReadout(segment);
             DrawConnectionReadout(segment);
@@ -120,6 +121,14 @@ namespace CargoKing.Streets.Editor
 
         private void OnSceneGUI()
         {
+            if (!StreetDrawing.Enabled)
+            {
+                // A half drawn state would be worse than none: the handles are what fight the spline
+                // tool for clicks, so switching off has to take them with it.
+                isDragging = false;
+                return;
+            }
+
             StreetSegment segment = (StreetSegment)target;
 
             DrawLanes(segment);

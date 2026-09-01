@@ -26,7 +26,7 @@ Transform:
   m_GameObject: {fileID: 604787060278772193}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: 9.5, y: 0.5, z: 0}
+  m_LocalPosition: {x: 9.5, y: 0.2, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -44,7 +44,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 537a44e0c64363e4393bb8e0ef5727b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CargoKing.Streets::CargoKing.Streets.IntersectionSocket
-  roadWidth: 7
+  roadWidth: 16
 --- !u!1 &905743435184455679
 GameObject:
   m_ObjectHideFlags: 0
@@ -71,7 +71,7 @@ Transform:
   m_GameObject: {fileID: 905743435184455679}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 1, z: 0, w: 0}
-  m_LocalPosition: {x: 0, y: 0.5, z: -9.5}
+  m_LocalPosition: {x: 0, y: 0.2, z: -9.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -89,7 +89,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 537a44e0c64363e4393bb8e0ef5727b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CargoKing.Streets::CargoKing.Streets.IntersectionSocket
-  roadWidth: 7
+  roadWidth: 16
 --- !u!1 &3999125826963930664
 GameObject:
   m_ObjectHideFlags: 0
@@ -246,7 +246,7 @@ Transform:
   m_GameObject: {fileID: 6362537051304109742}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: -0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: -9.5, y: 0.5, z: 0}
+  m_LocalPosition: {x: -9.5, y: 0.2, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -264,7 +264,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 537a44e0c64363e4393bb8e0ef5727b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CargoKing.Streets::CargoKing.Streets.IntersectionSocket
-  roadWidth: 7
+  roadWidth: 16
 --- !u!1 &7253638403285222212
 GameObject:
   m_ObjectHideFlags: 0
@@ -291,7 +291,7 @@ Transform:
   m_GameObject: {fileID: 7253638403285222212}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.5, z: 9.5}
+  m_LocalPosition: {x: 0, y: 0.2, z: 9.5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -309,4 +309,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 537a44e0c64363e4393bb8e0ef5727b6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: CargoKing.Streets::CargoKing.Streets.IntersectionSocket
-  roadWidth: 7
+  roadWidth: 16

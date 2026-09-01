@@ -89,6 +89,46 @@ namespace CargoKing.Streets.Editor
         }
 
         /// <summary>
+        /// The segment docked to a socket, or null when the socket is still free.
+        /// </summary>
+        /// <param name="exclude">Segment to ignore, so one can ask about its own socket.</param>
+        public static StreetSegment FindSegmentAt(IntersectionSocket socket, StreetSegment exclude)
+        {
+            return FindSegmentAt(socket, exclude, Object.FindObjectsByType<StreetSegment>(FindObjectsSortMode.None));
+        }
+
+        /// <summary>
+        /// The same question asked against a list of segments that has already been gathered. Scene
+        /// GUI code repaints constantly and would otherwise scan the whole scene once per socket.
+        /// </summary>
+        public static StreetSegment FindSegmentAt(
+            IntersectionSocket socket,
+            StreetSegment exclude,
+            StreetSegment[] segments)
+        {
+            if (socket == null)
+            {
+                return null;
+            }
+
+            for (int index = 0; index < segments.Length; index++)
+            {
+                StreetSegment segment = segments[index];
+                if (segment == exclude)
+                {
+                    continue;
+                }
+
+                if (segment.startConnection.socket == socket || segment.endConnection.socket == socket)
+                {
+                    return segment;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
         /// Docks one end of a segment to a target.
         /// </summary>
         public static void Connect(StreetSegment segment, StreetEnd end, StreetSnapTarget target)
@@ -219,19 +259,10 @@ namespace CargoKing.Streets.Editor
                 return "Both ends of this segment dock to the same socket.";
             }
 
-            StreetSegment[] segments = Object.FindObjectsByType<StreetSegment>(FindObjectsSortMode.None);
-            for (int index = 0; index < segments.Length; index++)
+            StreetSegment other = FindSegmentAt(socket, segment);
+            if (other != null)
             {
-                StreetSegment other = segments[index];
-                if (other == segment)
-                {
-                    continue;
-                }
-
-                if (other.startConnection.socket == socket || other.endConnection.socket == socket)
-                {
-                    return $"'{other.name}' already docks to this socket.";
-                }
+                return $"'{other.name}' already docks to this socket.";
             }
 
             return null;
