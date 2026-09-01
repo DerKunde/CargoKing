@@ -34,9 +34,12 @@ namespace CargoKing.Streets.Editor
 
             float3 position = spline[knotIndex].Position;
 
-            // Spline space runs one unit per curve, so a knot index divided by the number of curves
-            // lands exactly on that knot.
-            float3 tangent = spline.EvaluateTangent((float)knotIndex / (spline.Count - 1));
+            // The tangent of the curve leaving this knot, read at its own start. Not
+            // EvaluateTangent(knotIndex / (Count - 1)): spline space is normalised by ARC LENGTH, so
+            // that quotient only lands on the knot when every curve happens to be equally long. On a
+            // real street it would read the tangent somewhere else entirely and aim the junction
+            // askew. knotIndex is always an inner knot, so curve knotIndex always exists.
+            float3 tangent = CurveUtility.EvaluateTangent(spline.GetCurve(knotIndex), 0f);
 
             Vector3 direction = transform.TransformDirection(
                 new Vector3(tangent.x, tangent.y, tangent.z));
