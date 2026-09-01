@@ -136,6 +136,14 @@ namespace CargoKing.Streets.Editor
             DrawContinuations(segment, StreetEnd.End);
 
             DrawEndHandle(segment, StreetEnd.Start);
+
+            // A merge committed by the Start handle destroys this editor's own target, and the End
+            // handle would then read a destroyed object. Unity's overloaded == reports that.
+            if (segment == null)
+            {
+                return;
+            }
+
             DrawEndHandle(segment, StreetEnd.End);
         }
 
