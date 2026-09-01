@@ -250,5 +250,65 @@ namespace CargoKing.Streets.Editor.Tests
                     $"Knot {index} expected {expected[index]} but was {actual}.");
             }
         }
+
+        [Test]
+        public void Split_GivesEachHalfItsShareOfTheKnots()
+        {
+            StreetSegment segment = StreetTestFactory.Create(
+                "A",
+                Vector3.zero,
+                new Vector3(0f, 0f, 10f),
+                new Vector3(0f, 0f, 20f),
+                new Vector3(0f, 0f, 30f));
+
+            StreetSegment second = StreetSurgery.Split(segment, 1);
+
+            Assert.IsNotNull(second);
+            Assert.AreEqual(2, StreetSurgery.SplineOf(segment).Count);
+            Assert.AreEqual(3, StreetSurgery.SplineOf(second).Count);
+            Assert.AreEqual(10f, StreetSurgery.SplineOf(segment)[1].Position.z, 0.001f);
+            Assert.AreEqual(10f, StreetSurgery.SplineOf(second)[0].Position.z, 0.001f);
+        }
+
+        [Test]
+        public void Split_LeavesBothNewEndsOpen()
+        {
+            StreetSegment segment = StreetTestFactory.Create(
+                "A", Vector3.zero, new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 20f));
+
+            StreetSegment second = StreetSurgery.Split(segment, 1);
+
+            Assert.IsFalse(segment.endConnection.IsConnected);
+            Assert.IsFalse(second.startConnection.IsConnected);
+        }
+
+        [Test]
+        public void Split_HandsTheOuterConnectionToTheSecondHalf()
+        {
+            StreetSegment segment = StreetTestFactory.Create(
+                "A", Vector3.zero, new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 20f));
+
+            GameObject socketObject = new GameObject("Socket");
+            IntersectionSocket socket = socketObject.AddComponent<IntersectionSocket>();
+            segment.endConnection.socket = socket;
+
+            StreetSegment second = StreetSurgery.Split(segment, 1);
+
+            Assert.AreSame(socket, second.endConnection.socket);
+            Assert.IsNull(segment.endConnection.socket);
+
+            Object.DestroyImmediate(socketObject);
+        }
+
+        [Test]
+        public void Split_RefusesTheEndKnots()
+        {
+            StreetSegment segment = StreetTestFactory.Create(
+                "A", Vector3.zero, new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 20f));
+
+            Assert.IsFalse(StreetSurgery.CanSplit(segment, 0, out _));
+            Assert.IsFalse(StreetSurgery.CanSplit(segment, 2, out _));
+            Assert.IsTrue(StreetSurgery.CanSplit(segment, 1, out _));
+        }
     }
 }

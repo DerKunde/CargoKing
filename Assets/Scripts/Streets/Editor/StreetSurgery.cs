@@ -237,5 +237,104 @@ namespace CargoKing.Streets.Editor
 
             return target;
         }
+
+        /// <summary>
+        /// Whether a street can be cut at this knot. Only the inner knots qualify - cutting at an end
+        /// would produce a half with no length.
+        /// </summary>
+        public static bool CanSplit(StreetSegment segment, int knotIndex, out string problem)
+        {
+            problem = null;
+
+            Spline spline = SplineOf(segment);
+            if (spline == null || spline.Count < 3)
+            {
+                problem = "A street needs at least three knots before it can be cut.";
+                return false;
+            }
+
+            if (knotIndex < 1 || knotIndex > spline.Count - 2)
+            {
+                problem = "A street can only be cut at one of its inner knots.";
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Cuts a street in two at one of its knots. The knot itself is duplicated, so each half keeps
+        /// an end there. Both new ends are open.
+        /// </summary>
+        /// <returns>The second half, or null when the cut was refused.</returns>
+        public static StreetSegment Split(StreetSegment segment, int knotIndex)
+        {
+            if (!CanSplit(segment, knotIndex, out string problem))
+            {
+                Debug.LogWarning(problem, segment);
+                return null;
+            }
+
+            Undo.IncrementCurrentGroup();
+            int group = Undo.GetCurrentGroup();
+
+            Spline spline = SplineOf(segment);
+            SplineContainer container = segment.GetComponent<SplineContainer>();
+
+            Undo.RecordObject(segment, "Split Street");
+            Undo.RecordObject(container, "Split Street");
+
+            GameObject secondObject = new GameObject($"{segment.name} (2)");
+            Undo.RegisterCreatedObjectUndo(secondObject, "Split Street");
+
+            secondObject.transform.SetParent(segment.transform.parent, false);
+
+            // Placed exactly on the original, so the knots carry over without any conversion at all.
+            secondObject.transform.SetPositionAndRotation(
+                segment.transform.position, segment.transform.rotation);
+
+            SplineContainer secondContainer = secondObject.AddComponent<SplineContainer>();
+            Spline secondSpline = secondContainer.Spline;
+            secondSpline.Clear();
+
+            for (int index = knotIndex; index < spline.Count; index++)
+            {
+                secondSpline.Add(spline[index], spline.GetTangentMode(index));
+            }
+
+            StreetSegment second = secondObject.AddComponent<StreetSegment>();
+            second.roadWidth = segment.roadWidth;
+            second.sourceMesh = segment.sourceMesh;
+            second.forwardAxis = segment.forwardAxis;
+            second.tileLength = segment.tileLength;
+            second.generateCollider = segment.generateCollider;
+            second.curvatureWarningRadius = segment.curvatureWarningRadius;
+
+            MeshRenderer source = segment.GetComponent<MeshRenderer>();
+            MeshRenderer destination = second.GetComponent<MeshRenderer>();
+            if (source != null && destination != null)
+            {
+                destination.sharedMaterials = source.sharedMaterials;
+            }
+
+            // The far end of the road is now the far end of the second half.
+            second.endConnection = segment.endConnection;
+            second.startConnection = new StreetEndConnector();
+            segment.endConnection = new StreetEndConnector();
+
+            for (int index = spline.Count - 1; index > knotIndex; index--)
+            {
+                spline.RemoveAt(index);
+            }
+
+            EditorUtility.SetDirty(segment);
+            segment.Rebuild();
+            second.Rebuild();
+
+            Undo.CollapseUndoOperations(group);
+            Undo.SetCurrentGroupName("Split Street");
+
+            return second;
+        }
     }
 }
