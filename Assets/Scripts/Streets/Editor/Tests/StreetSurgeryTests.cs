@@ -217,5 +217,38 @@ namespace CargoKing.Streets.Editor.Tests
             Assert.IsFalse(dragged == null, "A refused merge must not destroy anything.");
             Assert.AreEqual(2, StreetSurgery.SplineOf(target).Count);
         }
+
+        [Test]
+        public void Merge_ConvertsKnotsThroughARotatedTransform()
+        {
+            // Every other fixture in this file sits at the origin with an identity rotation, so
+            // BezierKnot.Transform(matrix) is only ever exercised with an identity matrix there - a
+            // swapped multiplication order in Merge would go unnoticed. IntersectionSocketDragging
+            // builds new streets at a socket's position AND rotation, so a non-identity merge like
+            // this one is not hypothetical.
+            StreetSegment target = StreetTestFactory.Create("T", Vector3.zero, new Vector3(0f, 0f, 10f));
+            StreetSegment dragged = StreetTestFactory.Create("D", Vector3.zero, new Vector3(0f, 0f, 10f));
+            dragged.transform.SetPositionAndRotation(new Vector3(0f, 0f, 10f), Quaternion.Euler(0f, 90f, 0f));
+
+            StreetSegment survivor = StreetSurgery.Merge(dragged, StreetEnd.Start, target, StreetEnd.End);
+
+            UnityEngine.Splines.Spline spline = StreetSurgery.SplineOf(survivor);
+            Assert.AreEqual(3, spline.Count);
+
+            Vector3[] expected =
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(0f, 0f, 10f),
+                new Vector3(10f, 0f, 10f),
+            };
+
+            for (int index = 0; index < expected.Length; index++)
+            {
+                Vector3 actual = survivor.transform.TransformPoint(new Vector3(
+                    spline[index].Position.x, spline[index].Position.y, spline[index].Position.z));
+                Assert.AreEqual(0f, Vector3.Distance(actual, expected[index]), 0.001f,
+                    $"Knot {index} expected {expected[index]} but was {actual}.");
+            }
+        }
     }
 }
