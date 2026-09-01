@@ -131,13 +131,20 @@ namespace CargoKing.Streets.Editor
         /// forward points the new way while up stays where it was - a road that is read backwards must
         /// not end up upside down.
         ///
-        /// The tangents live in that frame. Spinning the frame flips their sign, and reading the road
-        /// backwards swaps which of the two leads in, so they are exchanged and negated together.
+        /// The tangents live in that frame. Reading the road backwards swaps which of the two leads
+        /// in, and each of them has to be re-expressed in the frame the knot now has.
         /// </summary>
         private static BezierKnot Flip(BezierKnot knot)
         {
             quaternion rotation = math.mul(knot.Rotation, quaternion.RotateY(math.PI));
-            return new BezierKnot(knot.Position, -knot.TangentOut, -knot.TangentIn, rotation);
+
+            // Re-expressed in the turned frame, not merely negated. Turning half a circle about the
+            // knot's up axis maps a stored tangent to (-x, +y, -z); negating all three would also
+            // flip the vertical component and make a merged sloped road dip where it should rise.
+            float3 tangentIn = new float3(-knot.TangentOut.x, knot.TangentOut.y, -knot.TangentOut.z);
+            float3 tangentOut = new float3(-knot.TangentIn.x, knot.TangentIn.y, -knot.TangentIn.z);
+
+            return new BezierKnot(knot.Position, tangentIn, tangentOut, rotation);
         }
 
         /// <summary>How close two ends have to be before they count as the same point, in metres.</summary>
@@ -256,6 +263,13 @@ namespace CargoKing.Streets.Editor
             if (knotIndex < 1 || knotIndex > spline.Count - 2)
             {
                 problem = "A street can only be cut at one of its inner knots.";
+                return false;
+            }
+
+            if (!IsUnscaled(segment.transform))
+            {
+                problem = "The street needs a scale of 1. The second half is created at scale 1 and "
+                    + "the knots are copied into it verbatim, so a scaled street would change size.";
                 return false;
             }
 

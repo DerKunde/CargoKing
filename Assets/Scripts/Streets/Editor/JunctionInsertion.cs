@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
@@ -61,6 +62,18 @@ namespace CargoKing.Streets.Editor
             GameObject junction,
             out string problem)
         {
+            // Sockets alone do not make a junction. Without this, a socket-bearing prefab with no
+            // Intersection on its root passes every other check, and Insert throws halfway through -
+            // after the road has already been cut and the prefab already placed.
+            if (!StreetKit.IsValidEntry(junction))
+            {
+                problem = junction == null
+                    ? "No junction prefab."
+                    : $"'{junction.name}' has no Intersection component on its root, so it cannot serve "
+                        + "as a junction.";
+                return false;
+            }
+
             if (!StreetSurgery.CanSplit(segment, knotIndex, out problem))
             {
                 return false;
@@ -164,20 +177,32 @@ namespace CargoKing.Streets.Editor
             intersection.Rebuild();
 
             // The alignment named sockets on the prefab; the docking has to use the ones on the copy.
-            IntersectionSocket entry = FindSame(junction, instance, alignment.entry);
-            IntersectionSocket exit = FindSame(junction, instance, alignment.exit);
+            // Carried across by list position, never by name or hierarchy path: Transform.Find matches
+            // names at every level, so two arms called the same thing would both resolve to the first
+            // one and drive both halves of the road onto a single socket. The copy mirrors the prefab,
+            // so a list gathered the same way on both is in the same order.
+            List<IntersectionSocket> prefabSockets = new List<IntersectionSocket>();
+            junction.GetComponentsInChildren(false, prefabSockets);
 
-            if (entry == null || exit == null)
+            List<IntersectionSocket> sockets = new List<IntersectionSocket>();
+            instance.GetComponentsInChildren(false, sockets);
+
+            if (sockets.Count != prefabSockets.Count
+                || alignment.entryIndex < 0 || alignment.entryIndex >= sockets.Count
+                || alignment.exitIndex < 0 || alignment.exitIndex >= sockets.Count)
             {
                 // Undoing the whole group is the only honest way out: the road is already cut and the
                 // junction already placed, and half a junction is worse than none.
                 Debug.LogWarning(
-                    $"The sockets of '{junction.name}' could not be found on the copy in the scene.",
+                    $"The sockets of '{junction.name}' could not be matched on the copy in the scene.",
                     segment);
 
                 Undo.RevertAllDownToGroup(group);
                 return null;
             }
+
+            IntersectionSocket entry = sockets[alignment.entryIndex];
+            IntersectionSocket exit = sockets[alignment.exitIndex];
 
             StreetSnapping.Connect(
                 segment, StreetEnd.End, new StreetSnapTarget { socket = entry, position = entry.transform.position });
@@ -193,18 +218,6 @@ namespace CargoKing.Streets.Editor
         }
 
         /// <summary>
-        /// The socket on the copy that matches one on the prefab, found by the path down the hierarchy
-        /// rather than by name - two arms of a junction are often called the same thing.
-        /// </summary>
-        private static IntersectionSocket FindSame(GameObject prefab, GameObject instance, IntersectionSocket socket)
-        {
-            string path = AnimationUtility.CalculateTransformPath(socket.transform, prefab.transform);
-            Transform found = instance.transform.Find(path);
-
-            return found != null ? found.GetComponent<IntersectionSocket>() : null;
-        }
-
-        /// <summary>
         /// The two streets docked to a junction, when there are exactly two.
         /// </summary>
         public static bool TryGetDockedPair(
@@ -214,12 +227,32 @@ namespace CargoKing.Streets.Editor
             out StreetSegment second,
             out StreetEnd secondEnd)
         {
+            return TryGetDockedPair(
+                intersection,
+                Object.FindObjectsByType<StreetSegment>(FindObjectsSortMode.InstanceID),
+                out first,
+                out firstEnd,
+                out second,
+                out secondEnd);
+        }
+
+        /// <summary>
+        /// The same question asked against a list of segments that has already been gathered. An
+        /// inspector that repaints constantly would otherwise scan the whole scene once per frame,
+        /// and walk every segment's hierarchy looking for the socket's owner while it is at it.
+        /// </summary>
+        public static bool TryGetDockedPair(
+            Intersection intersection,
+            StreetSegment[] segments,
+            out StreetSegment first,
+            out StreetEnd firstEnd,
+            out StreetSegment second,
+            out StreetEnd secondEnd)
+        {
             first = null;
             second = null;
             firstEnd = StreetEnd.Start;
             secondEnd = StreetEnd.Start;
-
-            StreetSegment[] segments = Object.FindObjectsByType<StreetSegment>(FindObjectsSortMode.InstanceID);
 
             for (int index = 0; index < segments.Length; index++)
             {
@@ -275,6 +308,23 @@ namespace CargoKing.Streets.Editor
                 return;
             }
 
+            // Exchanging the two sockets only puts the roads back where they were when the sockets
+            // face opposite ways. Hand a through street the stem of a T junction and both roads are
+            // whipped round onto arms they were never aligned to. Same threshold JunctionPlacement
+            // uses to decide what counts as a way through.
+            IntersectionSocket firstSocket = first.ConnectorAt(firstEnd).socket;
+            IntersectionSocket secondSocket = second.ConnectorAt(secondEnd).socket;
+
+            float facing = Vector3.Dot(firstSocket.Outward.normalized, secondSocket.Outward.normalized);
+            if (facing > JunctionPlacement.OpposingThreshold)
+            {
+                Debug.LogWarning(
+                    "Flipping only makes sense for two streets running through the junction. These two "
+                    + "dock to sockets that do not face opposite ways, so one of them is on a stem.",
+                    intersection);
+                return;
+            }
+
             Undo.IncrementCurrentGroup();
             int group = Undo.GetCurrentGroup();
 
@@ -284,8 +334,7 @@ namespace CargoKing.Streets.Editor
 
             intersection.transform.Rotate(intersection.transform.up, 180f, Space.World);
 
-            IntersectionSocket firstSocket = first.ConnectorAt(firstEnd).socket;
-            first.ConnectorAt(firstEnd).socket = second.ConnectorAt(secondEnd).socket;
+            first.ConnectorAt(firstEnd).socket = secondSocket;
             second.ConnectorAt(secondEnd).socket = firstSocket;
 
             intersection.Rebuild();

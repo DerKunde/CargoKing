@@ -24,10 +24,14 @@ namespace CargoKing.Streets.Editor
 
             Intersection intersection = (Intersection)target;
 
+            // Gathered once and shared. This inspector repaints constantly, and both questions below
+            // need every segment in the scene - scanning twice per frame is the thing to avoid.
+            StreetSegment[] segments = Object.FindObjectsByType<StreetSegment>(FindObjectsSortMode.None);
+
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Sockets", $"{intersection.Sockets.Count} active");
             EditorGUILayout.LabelField("Ways across", $"{intersection.Connections.Count}");
-            EditorGUILayout.LabelField("Free sockets", $"{CountFree(intersection)}");
+            EditorGUILayout.LabelField("Free sockets", $"{CountFree(intersection, segments)}");
 
             StreetDrawing.DrawInspectorNotice();
 
@@ -50,8 +54,8 @@ namespace CargoKing.Streets.Editor
                     MessageType.Info);
             }
 
-            Intersection self = intersection;
-            bool hasPair = JunctionInsertion.TryGetDockedPair(self, out _, out _, out _, out _);
+            bool hasPair = JunctionInsertion.TryGetDockedPair(
+                intersection, segments, out _, out _, out _, out _);
 
             using (new EditorGUI.DisabledScope(!hasPair))
             {
@@ -59,12 +63,12 @@ namespace CargoKing.Streets.Editor
 
                 if (GUILayout.Button("Flip"))
                 {
-                    JunctionInsertion.Flip(self);
+                    JunctionInsertion.Flip(intersection);
                 }
 
                 if (GUILayout.Button("Remove and close the road"))
                 {
-                    JunctionInsertion.Remove(self);
+                    JunctionInsertion.Remove(intersection);
                 }
 
                 EditorGUILayout.EndHorizontal();
@@ -100,9 +104,8 @@ namespace CargoKing.Streets.Editor
         }
 
         /// <summary>How many arms of this intersection have no street on them yet.</summary>
-        private static int CountFree(Intersection intersection)
+        private static int CountFree(Intersection intersection, StreetSegment[] segments)
         {
-            StreetSegment[] segments = Object.FindObjectsByType<StreetSegment>(FindObjectsSortMode.None);
             int free = 0;
 
             for (int index = 0; index < intersection.Sockets.Count; index++)
