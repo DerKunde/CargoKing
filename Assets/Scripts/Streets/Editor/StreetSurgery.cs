@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.Splines;
+using Unity.Mathematics;
 
 namespace CargoKing.Streets.Editor
 {
@@ -86,6 +87,56 @@ namespace CargoKing.Streets.Editor
             return Mathf.Abs(scale.x - 1f) < ScaleEpsilon
                 && Mathf.Abs(scale.y - 1f) < ScaleEpsilon
                 && Mathf.Abs(scale.z - 1f) < ScaleEpsilon;
+        }
+
+        /// <summary>
+        /// Turns a street around: the last knot becomes the first, and the road runs the other way.
+        ///
+        /// Needed because two of the four ways two streets can meet require one side to be read
+        /// backwards, and in one of them that side is the survivor itself.
+        /// </summary>
+        public static void Reverse(StreetSegment segment)
+        {
+            Spline spline = SplineOf(segment);
+            if (spline == null || spline.Count < 2)
+            {
+                return;
+            }
+
+            int count = spline.Count;
+            BezierKnot[] knots = new BezierKnot[count];
+            TangentMode[] modes = new TangentMode[count];
+
+            for (int index = 0; index < count; index++)
+            {
+                knots[index] = spline[index];
+                modes[index] = spline.GetTangentMode(index);
+            }
+
+            spline.Clear();
+            for (int index = count - 1; index >= 0; index--)
+            {
+                spline.Add(Flip(knots[index]), modes[index]);
+            }
+
+            // The connectors describe ends, and the ends have just changed places.
+            StreetEndConnector start = segment.startConnection;
+            segment.startConnection = segment.endConnection;
+            segment.endConnection = start;
+        }
+
+        /// <summary>
+        /// One knot, turned around. Its frame is spun half a turn about its own up axis so that its
+        /// forward points the new way while up stays where it was - a road that is read backwards must
+        /// not end up upside down.
+        ///
+        /// The tangents live in that frame. Spinning the frame flips their sign, and reading the road
+        /// backwards swaps which of the two leads in, so they are exchanged and negated together.
+        /// </summary>
+        private static BezierKnot Flip(BezierKnot knot)
+        {
+            quaternion rotation = math.mul(knot.Rotation, quaternion.RotateY(math.PI));
+            return new BezierKnot(knot.Position, -knot.TangentOut, -knot.TangentIn, rotation);
         }
     }
 }
