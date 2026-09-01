@@ -1,5 +1,6 @@
 using NUnit.Framework;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace CargoKing.Streets.Editor.Tests
 {
@@ -103,6 +104,118 @@ namespace CargoKing.Streets.Editor.Tests
             Assert.IsNull(segment.startConnection.socket);
 
             Object.DestroyImmediate(socketObject);
+        }
+
+        private static float[] MergedPositions(StreetSegment survivor)
+        {
+            UnityEngine.Splines.Spline spline = StreetSurgery.SplineOf(survivor);
+            float[] result = new float[spline.Count];
+
+            for (int index = 0; index < spline.Count; index++)
+            {
+                result[index] = survivor.transform.TransformPoint(
+                    new Vector3(spline[index].Position.x, spline[index].Position.y, spline[index].Position.z)).z;
+            }
+
+            return result;
+        }
+
+        [Test]
+        public void Merge_JoinsEndToStart()
+        {
+            StreetSegment target = StreetTestFactory.Create("T", Vector3.zero, new Vector3(0f, 0f, 10f));
+            StreetSegment dragged = StreetTestFactory.Create(
+                "D", new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 30f));
+
+            StreetSegment survivor = StreetSurgery.Merge(dragged, StreetEnd.Start, target, StreetEnd.End);
+
+            Assert.AreSame(target, survivor);
+            Assert.AreEqual(new[] { 0f, 10f, 30f }, MergedPositions(survivor));
+            Assert.IsTrue(dragged == null, "The dragged segment has to be gone.");
+        }
+
+        [Test]
+        public void Merge_JoinsEndToEnd()
+        {
+            StreetSegment target = StreetTestFactory.Create("T", Vector3.zero, new Vector3(0f, 0f, 10f));
+            StreetSegment dragged = StreetTestFactory.Create(
+                "D", new Vector3(0f, 0f, 30f), new Vector3(0f, 0f, 10f));
+
+            StreetSegment survivor = StreetSurgery.Merge(dragged, StreetEnd.End, target, StreetEnd.End);
+
+            Assert.AreEqual(new[] { 0f, 10f, 30f }, MergedPositions(survivor));
+        }
+
+        [Test]
+        public void Merge_JoinsStartToStart()
+        {
+            StreetSegment target = StreetTestFactory.Create("T", new Vector3(0f, 0f, 10f), Vector3.zero);
+            StreetSegment dragged = StreetTestFactory.Create(
+                "D", new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 30f));
+
+            StreetSegment survivor = StreetSurgery.Merge(dragged, StreetEnd.Start, target, StreetEnd.Start);
+
+            Assert.AreEqual(new[] { 0f, 10f, 30f }, MergedPositions(survivor));
+        }
+
+        [Test]
+        public void Merge_JoinsStartToEnd()
+        {
+            StreetSegment target = StreetTestFactory.Create("T", new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 30f));
+            StreetSegment dragged = StreetTestFactory.Create("D", Vector3.zero, new Vector3(0f, 0f, 10f));
+
+            StreetSegment survivor = StreetSurgery.Merge(dragged, StreetEnd.End, target, StreetEnd.Start);
+
+            // Both sides had to be turned around for this one, so the joined road is described from
+            // the far end backwards. Same road, read the other way - a merge promises no direction.
+            Assert.AreEqual(new[] { 30f, 10f, 0f }, MergedPositions(survivor));
+        }
+
+        [Test]
+        public void Merge_KeepsBothKnotsWhenTheTwoEndsDoNotMeet()
+        {
+            StreetSegment target = StreetTestFactory.Create("T", Vector3.zero, new Vector3(0f, 0f, 10f));
+            StreetSegment dragged = StreetTestFactory.Create(
+                "D", new Vector3(0f, 0f, 30f), new Vector3(0f, 0f, 40f));
+
+            StreetSegment survivor = StreetSurgery.Merge(dragged, StreetEnd.Start, target, StreetEnd.End);
+
+            // Nothing is welded here: the gap between 10 and 30 is road that has to stay. This is what
+            // taking a junction back out looks like - the two halves stand where its sockets were.
+            Assert.AreEqual(new[] { 0f, 10f, 30f, 40f }, MergedPositions(survivor));
+        }
+
+        [Test]
+        public void Merge_CarriesTheOuterSocketOver()
+        {
+            StreetSegment target = StreetTestFactory.Create("T", Vector3.zero, new Vector3(0f, 0f, 10f));
+            StreetSegment dragged = StreetTestFactory.Create(
+                "D", new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 30f));
+
+            GameObject socketObject = new GameObject("Socket");
+            IntersectionSocket socket = socketObject.AddComponent<IntersectionSocket>();
+            dragged.endConnection.socket = socket;
+
+            StreetSegment survivor = StreetSurgery.Merge(dragged, StreetEnd.Start, target, StreetEnd.End);
+
+            Assert.AreSame(socket, survivor.endConnection.socket);
+
+            Object.DestroyImmediate(socketObject);
+        }
+
+        [Test]
+        public void Merge_RefusesAndChangesNothingWhenTheWidthsDiffer()
+        {
+            LogAssert.ignoreFailingMessages = true;
+
+            StreetSegment target = StreetTestFactory.Create("T", Vector3.zero, new Vector3(0f, 0f, 10f));
+            StreetSegment dragged = StreetTestFactory.Create(
+                "D", new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 30f));
+            dragged.roadWidth = 7f;
+
+            Assert.IsNull(StreetSurgery.Merge(dragged, StreetEnd.Start, target, StreetEnd.End));
+            Assert.IsFalse(dragged == null, "A refused merge must not destroy anything.");
+            Assert.AreEqual(2, StreetSurgery.SplineOf(target).Count);
         }
     }
 }
