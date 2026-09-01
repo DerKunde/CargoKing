@@ -57,6 +57,42 @@ namespace CargoKing.Streets.Editor
                 menu.AddDisabledItem(new GUIContent($"Split here - {problem}"));
             }
 
+            menu.AddSeparator(string.Empty);
+
+            StreetKit kit = StreetKit.Find(out string kitProblem);
+            if (kitProblem != null)
+            {
+                Debug.LogWarning(kitProblem);
+            }
+
+            if (kit == null)
+            {
+                menu.AddItem(
+                    new GUIContent("Insert junction/Create a Street Kit first"),
+                    false,
+                    () => Selection.activeObject = StreetKit.CreateSeeded());
+            }
+            else if (kit.intersections.Count == 0)
+            {
+                menu.AddDisabledItem(new GUIContent("Insert junction/The Street Kit is empty"));
+            }
+            else
+            {
+                for (int index = 0; index < kit.intersections.Count; index++)
+                {
+                    GameObject junction = kit.intersections[index];
+                    if (junction == null)
+                    {
+                        continue;
+                    }
+
+                    menu.AddItem(
+                        new GUIContent($"Insert junction/{junction.name}"),
+                        false,
+                        () => JunctionInsertion.Insert(segment, knotIndex, junction));
+                }
+            }
+
             menu.ShowAsContext();
         }
     }
