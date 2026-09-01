@@ -70,7 +70,14 @@ namespace CargoKing.Streets.Editor
                 }
             }
 
-            AssetDatabase.CreateAsset(kit, "Assets/StreetKit.asset");
+            // A unique path, not a fixed one. CreateAsset onto a taken path logs an error and quietly
+            // fails to persist, and this method would still hand back the in-memory object as though
+            // it had worked - a kit that vanishes on the next reload, after junctions were inserted
+            // from it. If the path is taken by something that is not a kit, Find would not have seen
+            // it, so stepping aside is the right move.
+            string uniquePath = AssetDatabase.GenerateUniqueAssetPath("Assets/StreetKit.asset");
+
+            AssetDatabase.CreateAsset(kit, uniquePath);
             AssetDatabase.SaveAssets();
 
             return kit;
