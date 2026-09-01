@@ -1,5 +1,7 @@
+using Unity.Mathematics;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Splines;
 
 namespace CargoKing.Streets.Editor
 {
@@ -146,6 +148,16 @@ namespace CargoKing.Streets.Editor
             // one street with one spline.
             if (target.socket == null)
             {
+                if (!StreetSurgery.CanMerge(segment, target.segment, out string problem))
+                {
+                    // Asked before anything moves, so a refused merge leaves the dragged street where
+                    // the user put it rather than yanked onto a target it never joined.
+                    Debug.LogWarning(problem, target.segment);
+                    return null;
+                }
+
+                PullEndOnto(segment, end, target.segment.EndPosition(target.segmentEnd));
+
                 return StreetSurgery.Merge(segment, end, target.segment, target.segmentEnd);
             }
 
@@ -160,6 +172,36 @@ namespace CargoKing.Streets.Editor
             segment.Rebuild();
 
             return segment;
+        }
+
+        /// <summary>
+        /// Moves one end of a segment exactly onto a world position, so a merge finds the two ends
+        /// lying on each other and welds them into a single knot.
+        ///
+        /// The gesture docks anything within <see cref="SnapRadius"/>, six hundred times the distance
+        /// a merge treats as "the same point". Without this the road would keep both knots and carry a
+        /// kinked gap of up to six metres. The old driven-connector path did exactly this, by pulling
+        /// the driven end onto its counterpart. Taking a junction back out deliberately does not: there
+        /// the two halves stand a socket offset apart and that stretch of road has to stay.
+        /// </summary>
+        private static void PullEndOnto(StreetSegment segment, StreetEnd end, Vector3 worldPosition)
+        {
+            SplineContainer container = segment.GetComponent<SplineContainer>();
+            Spline spline = container != null ? container.Spline : null;
+
+            if (spline == null || spline.Count == 0)
+            {
+                return;
+            }
+
+            Undo.RecordObject(container, "Connect Street");
+
+            int index = end == StreetEnd.Start ? 0 : spline.Count - 1;
+            Vector3 local = segment.transform.InverseTransformPoint(worldPosition);
+
+            BezierKnot knot = spline[index];
+            knot.Position = new float3(local.x, local.y, local.z);
+            spline.SetKnot(index, knot);
         }
 
         /// <summary>

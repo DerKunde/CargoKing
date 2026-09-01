@@ -12,6 +12,17 @@ namespace CargoKing.Streets.Editor
         /// <summary>Socket the half leaving the knot docks to.</summary>
         public IntersectionSocket exit;
 
+        /// <summary>
+        /// Position of <see cref="entry"/> in the socket list gathered by
+        /// <c>GetComponentsInChildren(false, sockets)</c> on the junction's root.
+        /// </summary>
+        public int entryIndex;
+
+        /// <summary>
+        /// Position of <see cref="exit"/> in that same list.
+        /// </summary>
+        public int exitIndex;
+
         /// <summary>World position for the junction's root.</summary>
         public Vector3 position;
 
@@ -32,7 +43,7 @@ namespace CargoKing.Streets.Editor
     public static class JunctionPlacement
     {
         /// <summary>How nearly opposite two sockets have to look to count as a way through.</summary>
-        private const float OpposingThreshold = -0.9f;
+        public const float OpposingThreshold = -0.9f;
 
         public static bool TryAlign(
             GameObject junction,
@@ -66,8 +77,8 @@ namespace CargoKing.Streets.Editor
             // The way through is the pair that looks most nearly opposite. On a crossing there are two
             // such pairs and they are interchangeable; on a T junction there is exactly one, and the
             // socket left over is the stem.
-            IntersectionSocket first = null;
-            IntersectionSocket second = null;
+            int firstIndex = -1;
+            int secondIndex = -1;
             float bestDot = OpposingThreshold;
 
             for (int a = 0; a < sockets.Count; a++)
@@ -82,21 +93,27 @@ namespace CargoKing.Streets.Editor
                     if (dot < bestDot)
                     {
                         bestDot = dot;
-                        first = sockets[a];
-                        second = sockets[b];
+                        firstIndex = a;
+                        secondIndex = b;
                     }
                 }
             }
 
-            if (first == null)
+            if (firstIndex < 0)
             {
                 problem = $"'{junction.name}' has no two sockets facing opposite ways, so no street can "
                     + "pass through it.";
                 return false;
             }
 
-            IntersectionSocket entry = flipped ? second : first;
-            IntersectionSocket exit = flipped ? first : second;
+            // The pair is reported as list positions as well as references. The references belong to
+            // the prefab asset; whoever instantiates it has to dock the copy's sockets, and the only
+            // reliable way across is the position in a list gathered the same way on the copy.
+            int chosenEntryIndex = flipped ? secondIndex : firstIndex;
+            int chosenExitIndex = flipped ? firstIndex : secondIndex;
+
+            IntersectionSocket entry = sockets[chosenEntryIndex];
+            IntersectionSocket exit = sockets[chosenExitIndex];
 
             Vector3 entryPositionLocal = root.InverseTransformPoint(entry.transform.position);
             Vector3 exitPositionLocal = root.InverseTransformPoint(exit.transform.position);
@@ -113,6 +130,8 @@ namespace CargoKing.Streets.Editor
             {
                 entry = entry,
                 exit = exit,
+                entryIndex = chosenEntryIndex,
+                exitIndex = chosenExitIndex,
                 rotation = rotation,
                 position = knotPosition - rotation * middleLocal,
                 socketOffset = Vector3.Distance(entryPositionLocal, middleLocal),
