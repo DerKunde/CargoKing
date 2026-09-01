@@ -145,6 +145,8 @@ namespace CargoKing.Streets.Editor
             }
 
             DrawEndHandle(segment, StreetEnd.End);
+
+            StreetKnotHandles.Draw(segment);
         }
 
         private void DrawEndHandle(StreetSegment segment, StreetEnd end)
