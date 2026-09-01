@@ -49,6 +49,33 @@ namespace CargoKing.Streets.Editor
                     + "serves as a T junction.",
                     MessageType.Info);
             }
+
+            Intersection self = intersection;
+            bool hasPair = JunctionInsertion.TryGetDockedPair(self, out _, out _, out _, out _);
+
+            using (new EditorGUI.DisabledScope(!hasPair))
+            {
+                EditorGUILayout.BeginHorizontal();
+
+                if (GUILayout.Button("Flip"))
+                {
+                    JunctionInsertion.Flip(self);
+                }
+
+                if (GUILayout.Button("Remove and close the road"))
+                {
+                    JunctionInsertion.Remove(self);
+                }
+
+                EditorGUILayout.EndHorizontal();
+            }
+
+            if (!hasPair)
+            {
+                EditorGUILayout.HelpBox(
+                    "Flipping and removing need exactly two streets docked to this junction.",
+                    MessageType.None);
+            }
         }
 
         private void OnSceneGUI()

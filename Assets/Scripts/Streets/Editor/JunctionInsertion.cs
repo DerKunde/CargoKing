@@ -203,5 +203,133 @@ namespace CargoKing.Streets.Editor
 
             return found != null ? found.GetComponent<IntersectionSocket>() : null;
         }
+
+        /// <summary>
+        /// The two streets docked to a junction, when there are exactly two.
+        /// </summary>
+        public static bool TryGetDockedPair(
+            Intersection intersection,
+            out StreetSegment first,
+            out StreetEnd firstEnd,
+            out StreetSegment second,
+            out StreetEnd secondEnd)
+        {
+            first = null;
+            second = null;
+            firstEnd = StreetEnd.Start;
+            secondEnd = StreetEnd.Start;
+
+            StreetSegment[] segments = Object.FindObjectsByType<StreetSegment>(FindObjectsSortMode.InstanceID);
+
+            for (int index = 0; index < segments.Length; index++)
+            {
+                StreetSegment segment = segments[index];
+
+                for (int side = 0; side < 2; side++)
+                {
+                    StreetEnd end = side == 0 ? StreetEnd.Start : StreetEnd.End;
+                    IntersectionSocket socket = segment.ConnectorAt(end).socket;
+
+                    if (socket == null || socket.Owner != intersection)
+                    {
+                        continue;
+                    }
+
+                    if (first == null)
+                    {
+                        first = segment;
+                        firstEnd = end;
+                    }
+                    else if (second == null)
+                    {
+                        second = segment;
+                        secondEnd = end;
+                    }
+                    else
+                    {
+                        // Three or more streets: neither flipping nor removing has a defined meaning.
+                        first = null;
+                        second = null;
+                        return false;
+                    }
+                }
+            }
+
+            return first != null && second != null;
+        }
+
+        /// <summary>
+        /// Turns a junction half a turn about its up axis, so a T junction's stem changes sides.
+        ///
+        /// The two docked halves are driven by their sockets, so turning alone would drag each of them
+        /// onto the other's place and the two would cross. Their socket references are exchanged along
+        /// with the turn, which puts everything back where it was and moves only the stem.
+        /// </summary>
+        public static void Flip(Intersection intersection)
+        {
+            if (!TryGetDockedPair(intersection, out StreetSegment first, out StreetEnd firstEnd,
+                out StreetSegment second, out StreetEnd secondEnd))
+            {
+                Debug.LogWarning(
+                    "Flipping needs exactly two streets docked to this junction.", intersection);
+                return;
+            }
+
+            Undo.IncrementCurrentGroup();
+            int group = Undo.GetCurrentGroup();
+
+            Undo.RecordObject(intersection.transform, "Flip Junction");
+            Undo.RecordObject(first, "Flip Junction");
+            Undo.RecordObject(second, "Flip Junction");
+
+            intersection.transform.Rotate(intersection.transform.up, 180f, Space.World);
+
+            IntersectionSocket firstSocket = first.ConnectorAt(firstEnd).socket;
+            first.ConnectorAt(firstEnd).socket = second.ConnectorAt(secondEnd).socket;
+            second.ConnectorAt(secondEnd).socket = firstSocket;
+
+            intersection.Rebuild();
+            first.Rebuild();
+            second.Rebuild();
+
+            Undo.CollapseUndoOperations(group);
+            Undo.SetCurrentGroupName("Flip Junction");
+        }
+
+        /// <summary>
+        /// Takes a junction out again and closes the road over it.
+        /// </summary>
+        /// <returns>The joined street, or null when it was refused.</returns>
+        public static StreetSegment Remove(Intersection intersection)
+        {
+            if (!TryGetDockedPair(intersection, out StreetSegment first, out StreetEnd firstEnd,
+                out StreetSegment second, out StreetEnd secondEnd))
+            {
+                Debug.LogWarning(
+                    "Removing needs exactly two streets docked to this junction.", intersection);
+                return null;
+            }
+
+            if (!StreetSurgery.CanMerge(second, first, out string problem))
+            {
+                Debug.LogWarning(problem, intersection);
+                return null;
+            }
+
+            Undo.IncrementCurrentGroup();
+            int group = Undo.GetCurrentGroup();
+
+            StreetSnapping.Disconnect(first, firstEnd);
+            StreetSnapping.Disconnect(second, secondEnd);
+
+            Undo.DestroyObjectImmediate(intersection.gameObject);
+
+            StreetSegment survivor = StreetSurgery.Merge(second, secondEnd, first, firstEnd);
+
+            Undo.CollapseUndoOperations(group);
+            Undo.SetCurrentGroupName("Remove Junction");
+
+            return survivor;
+        }
     }
 }
