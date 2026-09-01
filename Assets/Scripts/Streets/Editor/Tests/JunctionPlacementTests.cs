@@ -96,11 +96,57 @@ namespace CargoKing.Streets.Editor.Tests
             GameObject bare = new GameObject("Bare");
             bare.AddComponent<Intersection>();
 
+            // Add two sockets that are not opposing: one forward, one right. Their dot product is 0,
+            // which fails the opposing-pair threshold, so TryAlign must reject through the first == null branch.
+            GameObject socket1 = new GameObject("Socket");
+            socket1.transform.SetParent(bare.transform, false);
+            socket1.transform.localPosition = Vector3.zero;
+            socket1.transform.localRotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
+            socket1.AddComponent<IntersectionSocket>().roadWidth = 16f;
+
+            GameObject socket2 = new GameObject("Socket");
+            socket2.transform.SetParent(bare.transform, false);
+            socket2.transform.localPosition = Vector3.zero;
+            socket2.transform.localRotation = Quaternion.LookRotation(Vector3.right, Vector3.up);
+            socket2.AddComponent<IntersectionSocket>().roadWidth = 16f;
+
             Assert.IsFalse(JunctionPlacement.TryAlign(
                 bare, Vector3.zero, Vector3.forward, Vector3.up, false, out _, out string problem));
             Assert.IsNotNull(problem);
 
             Object.DestroyImmediate(bare);
+        }
+
+        [Test]
+        public void TryAlign_WorksWithJunctionNotAtOrigin()
+        {
+            // The fixture in SetUp is at the origin, which masks any local/world confusion because
+            // InverseTransformPoint and InverseTransformDirection become no-ops. The real prefab
+            // (Intersection_full.prefab) has its root at (106.41697, -0.051073894, -239.35114),
+            // so test that configuration here. Assertions use world space to make the offset matter.
+            junction.transform.SetPositionAndRotation(
+                new Vector3(106.41697f, -0.051073894f, -239.35114f),
+                Quaternion.Euler(0f, 37f, 0f));
+
+            Vector3 knotPosition = new Vector3(100f, 0f, 50f);
+            Assert.IsTrue(JunctionPlacement.TryAlign(
+                junction,
+                knotPosition,
+                Vector3.forward,
+                Vector3.up,
+                false,
+                out JunctionAlignment alignment,
+                out string problem), problem);
+
+            // Entry socket's resulting world outward must equal -roadDirection.
+            Vector3 entryWorldOutward = alignment.rotation * junction.transform.InverseTransformDirection(alignment.entry.Outward);
+            Assert.AreEqual(-1f, Vector3.Dot(entryWorldOutward.normalized, Vector3.forward), 0.001f);
+
+            // Midpoint of the two sockets must land on the knot.
+            Vector3 entryWorldPosition = alignment.position + alignment.rotation * junction.transform.InverseTransformPoint(alignment.entry.transform.position);
+            Vector3 exitWorldPosition = alignment.position + alignment.rotation * junction.transform.InverseTransformPoint(alignment.exit.transform.position);
+            Vector3 midpoint = (entryWorldPosition + exitWorldPosition) * 0.5f;
+            Assert.AreEqual(0f, Vector3.Distance(midpoint, knotPosition), 0.001f);
         }
     }
 }
