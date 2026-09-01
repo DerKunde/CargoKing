@@ -27,6 +27,18 @@ namespace CargoKing.Streets.Editor
             EditorGUILayout.Space();
             EditorGUILayout.LabelField("Sockets", $"{intersection.Sockets.Count} active");
             EditorGUILayout.LabelField("Ways across", $"{intersection.Connections.Count}");
+            EditorGUILayout.LabelField("Free sockets", $"{CountFree(intersection)}");
+
+            StreetDrawing.DrawInspectorNotice();
+
+            if (StreetDrawing.Enabled)
+            {
+                EditorGUILayout.HelpBox(
+                    "Drag the amber ball in front of a free socket to pull a street out of it. The draw "
+                    + "tool then takes over, so the road can be carried on with more knots. Release near "
+                    + "another socket or a street end instead to dock the far end and finish the road.",
+                    MessageType.None);
+            }
 
             if (intersection.Sockets.Count < 2)
             {
@@ -41,6 +53,11 @@ namespace CargoKing.Streets.Editor
 
         private void OnSceneGUI()
         {
+            if (!StreetDrawing.Enabled)
+            {
+                return;
+            }
+
             Intersection intersection = (Intersection)target;
             Transform transform = intersection.transform;
 
@@ -50,6 +67,26 @@ namespace CargoKing.Streets.Editor
             {
                 DrawConnection(intersection.Connections[index], transform);
             }
+
+            // Drawn last so the pull handles sit on top of the socket markings they belong to.
+            IntersectionSocketDragging.Draw(intersection);
+        }
+
+        /// <summary>How many arms of this intersection have no street on them yet.</summary>
+        private static int CountFree(Intersection intersection)
+        {
+            StreetSegment[] segments = Object.FindObjectsByType<StreetSegment>(FindObjectsSortMode.None);
+            int free = 0;
+
+            for (int index = 0; index < intersection.Sockets.Count; index++)
+            {
+                if (StreetSnapping.FindSegmentAt(intersection.Sockets[index], null, segments) == null)
+                {
+                    free++;
+                }
+            }
+
+            return free;
         }
 
         private static void DrawSockets(Intersection intersection, Transform transform)
