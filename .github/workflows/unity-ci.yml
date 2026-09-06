@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'Skip-CI')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
           lfs: false
@@ -84,12 +84,12 @@ jobs:
           swap-storage: true
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           lfs: true
 
       - name: Cache Library
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: Library
           key: Library-editmode-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
@@ -112,7 +112,7 @@ jobs:
           customImage: unityci/editor:ubuntu-6000.3.8f1-windows-mono-3.2.1
 
       - name: Upload test results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         if: always()
         with:
           name: Test-Results
@@ -158,12 +158,12 @@ jobs:
           swap-storage: true
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           lfs: true
 
       - name: Cache Library
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: Library
           key: Library-build-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
@@ -172,7 +172,7 @@ jobs:
             Library-
 
       - name: Build project
-        uses: game-ci/unity-builder@v4
+        uses: game-ci/unity-builder@v5.0.1
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
@@ -183,7 +183,7 @@ jobs:
           buildsPath: build
 
       - name: Upload build
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: Build-Windows
           path: build/StandaloneWindows64
