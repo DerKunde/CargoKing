@@ -1,0 +1,72 @@
+name: Auto Tag on PR Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: Create Version Tag
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Determine bump type from PR title
+        id: bump
+        run: |
+          TITLE="${{ github.event.pull_request.title }}"
+          echo "PR title: $TITLE"
+
+          if echo "$TITLE" | grep -qiE '^(feat!|break(ing)?):'; then
+            echo "type=major" >> $GITHUB_OUTPUT
+          elif echo "$TITLE" | grep -qiE '^feat(\(.+\))?!:'; then
+            echo "type=major" >> $GITHUB_OUTPUT
+          elif echo "$TITLE" | grep -qiE '^feat(\(.+\))?:'; then
+            echo "type=minor" >> $GITHUB_OUTPUT
+          else
+            echo "type=patch" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Compute next version
+        id: version
+        run: |
+          LATEST=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+          if [ -z "$LATEST" ]; then
+            LATEST="v0.0.0"
+          fi
+          echo "Latest tag: $LATEST"
+
+          MAJOR=$(echo "$LATEST" | sed 's/v\([0-9]*\)\..*/\1/')
+          MINOR=$(echo "$LATEST" | sed 's/v[0-9]*\.\([0-9]*\)\..*/\1/')
+          PATCH=$(echo "$LATEST" | sed 's/v[0-9]*\.[0-9]*\.\([0-9]*\)/\1/')
+
+          BUMP="${{ steps.bump.outputs.type }}"
+          if [ "$BUMP" = "major" ]; then
+            NEW_VERSION="v$((MAJOR + 1)).0.0"
+          elif [ "$BUMP" = "minor" ]; then
+            NEW_VERSION="v${MAJOR}.$((MINOR + 1)).0"
+          else
+            NEW_VERSION="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+
+          echo "value=${NEW_VERSION}" >> $GITHUB_OUTPUT
+          echo "Bump: ${BUMP} — ${LATEST} → ${NEW_VERSION}"
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag ${{ steps.version.outputs.value }} -m "Release ${{ steps.version.outputs.value }}"
+          git push origin ${{ steps.version.outputs.value }}
