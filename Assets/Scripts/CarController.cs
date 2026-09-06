@@ -145,6 +145,8 @@ public class CarController : MonoBehaviour
 
     private void ApplyThrottle(float throttle)
     {
+        DebugGraph.Plot("Throttle", throttle, 0f, 1f);
+
         float totalWheelTorqueInNewton = carEngine.CalculateWheelTorque(throttle, Vector3.Dot(carBody.linearVelocity, transform.forward));
         if(throttle > 0f)
         {

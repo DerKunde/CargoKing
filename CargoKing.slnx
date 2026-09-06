@@ -1,5 +1,7 @@
 ﻿<Solution>
   <Project Path="Assembly-CSharp.csproj" />
+  <Project Path="Reflex.Editor.csproj" />
+  <Project Path="Reflex.csproj" />
   <Project Path="R3.Unity.csproj" />
   <Project Path="NuGetForUnity.csproj" />
   <Project Path="R3.Unity.Editor.csproj" />
