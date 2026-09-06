@@ -1,0 +1,190 @@
+name: Unity CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'Assets/**'
+      - 'Packages/**'
+      - 'ProjectSettings/**'
+      - '.github/workflows/unity-ci.yml'
+  pull_request:
+    branches: [ main ]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+    paths:
+      - 'Assets/**'
+      - 'Packages/**'
+      - 'ProjectSettings/**'
+      - '.github/workflows/unity-ci.yml'
+  workflow_dispatch:
+    inputs:
+      run_tests:
+        description: 'Run tests'
+        required: false
+        default: true
+        type: boolean
+      run_build:
+        description: 'Run build'
+        required: false
+        default: true
+        type: boolean
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  ensure-up-to-date:
+    name: Branch up to date with main
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'Skip-CI')
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - name: Check commits behind main
+        run: |
+          git fetch origin main
+          BEHIND=$(git rev-list --count HEAD..origin/main)
+          if [ "$BEHIND" -gt 0 ]; then
+            echo "❌ Branch is $BEHIND commit(s) behind main. Please rebase or merge main into your branch first."
+            exit 1
+          fi
+          echo "✅ Branch is up to date with main"
+
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: [ensure-up-to-date]
+    if: |
+      always() &&
+      (needs.ensure-up-to-date.result == 'success' || needs.ensure-up-to-date.result == 'skipped') &&
+      !contains(github.event.pull_request.labels.*.name, 'Skip-CI') &&
+      (!github.event.inputs.run_tests || github.event.inputs.run_tests == 'true')
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Cache Library
+        uses: actions/cache@v5
+        with:
+          path: Library
+          key: Library-editmode-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-editmode-
+            Library-
+
+      - name: Run tests
+        id: unity_tests
+        uses: game-ci/unity-test-runner@v4
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          testMode: editmode
+          artifactsPath: test-results
+          checkName: editmode Test Results
+          githubToken: ${{ secrets.GITHUB_TOKEN }}
+          customImage: unityci/editor:ubuntu-6000.3.8f1-windows-mono-3.2.1
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: Test-Results
+          path: test-results
+          retention-days: 14
+
+      - name: Verify test results
+        run: |
+          if [ ! -f "test-results/editmode-results.xml" ]; then
+            echo "❌ Test results file not found"
+            exit 1
+          fi
+
+          if grep -q 'result="Passed"' test-results/editmode-results.xml && \
+             grep -q 'failed="0"' test-results/editmode-results.xml; then
+            TOTAL=$(grep -oP 'total="\K[0-9]+' test-results/editmode-results.xml | head -1)
+            PASSED=$(grep -oP 'passed="\K[0-9]+' test-results/editmode-results.xml | head -1)
+            echo "✅ All tests passed: $PASSED/$TOTAL"
+            exit 0
+          else
+            echo "❌ Some tests failed"
+            exit 1
+          fi
+
+  build:
+    name: Build for Windows
+    runs-on: ubuntu-latest
+    needs: test
+    if: |
+      success() &&
+      !contains(github.event.pull_request.labels.*.name, 'Skip-CI') &&
+      (!github.event.inputs.run_build || github.event.inputs.run_build == 'true')
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          lfs: true
+
+      - name: Cache Library
+        uses: actions/cache@v5
+        with:
+          path: Library
+          key: Library-build-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-build-
+            Library-
+
+      - name: Build project
+        uses: game-ci/unity-builder@v5.0.1
+        env:
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          targetPlatform: StandaloneWindows64
+          buildName: CargoKing
+          buildsPath: build
+
+      - name: Upload build
+        uses: actions/upload-artifact@v6
+        with:
+          name: Build-Windows
+          path: build/StandaloneWindows64
+          retention-days: 14
