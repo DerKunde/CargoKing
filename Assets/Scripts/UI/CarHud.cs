@@ -1,4 +1,6 @@
 using CargoKing.Car;
+using R3;
+using Reflex.Attributes;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -16,8 +18,7 @@ namespace CargoKing.UI
         private const string RpmLimiterClass = "car-hud__rpm--limiter";
         private const string GearHiddenClass = "car-hud__gear--hidden";
 
-        [Header("Data source")]
-        public CarController carController;
+        [Inject] private CurrentCarProvider currentCarProvider;
 
         [Header("Rev limiter feedback")]
         public float blinkSpeed = 6f;
@@ -25,6 +26,12 @@ namespace CargoKing.UI
         private Label speedLabel;
         private Label rpmLabel;
         private Label gearLabel;
+        private CarController carController;
+
+        private void Awake()
+        {
+            currentCarProvider.Current.Subscribe(car => carController = car).AddTo(this);
+        }
 
         /// <summary>
         /// Queries this panel's labels out of its cloned visual tree. Called once by IngameOverlay
