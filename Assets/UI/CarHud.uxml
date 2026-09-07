@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ui:UXML
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ui="UnityEngine.UIElements"
+    xmlns:uie="UnityEditor.UIElements"
+    xsi:noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd"
+>
+    <Style src="style_CarHud.uss" />
+    <ui:VisualElement name="car-hud-panel" picking-mode="Ignore" class="car-hud__panel">
+        <ui:Label name="car-hud-speed" picking-mode="Ignore" text="0 km/h" class="car-hud__speed" />
+        <ui:VisualElement name="car-hud-bottom-row" picking-mode="Ignore" class="car-hud__bottom-row">
+            <ui:Label name="car-hud-rpm" picking-mode="Ignore" text="0" class="car-hud__rpm" />
+            <ui:Label name="car-hud-gear" picking-mode="Ignore" text="1" class="car-hud__gear" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

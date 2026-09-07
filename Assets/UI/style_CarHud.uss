@@ -1,0 +1,55 @@
+.car-hud__panel {
+    flex-direction: column;
+    align-items: center;
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 12px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-bottom-left-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+.car-hud__bottom-row {
+    flex-direction: row;
+    justify-content: center;
+    align-items: flex-end;
+}
+
+.car-hud__speed,
+.car-hud__rpm,
+.car-hud__gear {
+    color: white;
+    margin-left: 12px;
+    margin-right: 12px;
+    -unity-text-align: lower-center;
+}
+
+.car-hud__speed {
+    font-size: 48px;
+    width: 200px;
+    min-width: 200px;
+    max-width: 200px;
+}
+
+.car-hud__rpm {
+    font-size: 28px;
+    width: 80px;
+    min-width: 80px;
+    max-width: 80px;
+}
+
+.car-hud__gear {
+    font-size: 28px;
+    width: 50px;
+    min-width: 50px;
+    max-width: 50px;
+}
+
+/* Toggled from CarHud.cs while CarEngine.revLimiterFactor < 1. */
+.car-hud__rpm--limiter {
+    color: red;
+}
+
+.car-hud__gear--hidden {
+    opacity: 0;
+}
