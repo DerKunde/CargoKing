@@ -22,6 +22,7 @@ namespace CargoKing.Car
         public float rollingResistanceCoefficient = 0.015f;
         private float tireMass = 1f;
         private float wheelRadius = 0.1f;
+        private float wheelInertia = 0.05f;
         public LayerMask groundMask = ~0;
 
         [Header("Wheel Visual")]
@@ -44,6 +45,24 @@ namespace CargoKing.Car
         public bool rollForceAtStopLimit;
 
         public bool isGrounded;
+
+        [Header("Wheel Rotation")]
+        /// <summary>
+        /// Radians/second, positive = tire surface moving in the same direction as
+        /// <see cref="rollDirection"/>. Integrated from net torque every FixedUpdate - not
+        /// re-derived from ground velocity, so it keeps turning under drive torque even with no
+        /// ground contact.
+        /// </summary>
+        public float wheelAngularVelocity;
+
+        /// <summary>
+        /// Torque handed in by <see cref="CarController"/> from the driveline, N*m. Left at 0 for
+        /// wheels that are not driven (front wheels today).
+        /// </summary>
+        [HideInInspector] public float driveTorque;
+
+        private float driveReactionTorque;
+        private float resistiveReactionTorque;
 
         /// <summary>
         /// How far the strut is extended: 0 fully compressed, 1 at rest length or in the air. The
@@ -81,6 +100,9 @@ namespace CargoKing.Car
             {
                 wheelRadius = wheelMesh.localScale.z / 2; // Unit in meters
                 tireMass = carBody.mass / 4;
+                // Solid-disk approximation - good enough given the tire's own mass is already a
+                // simplification (carBody.mass / 4, not a measured wheel+tire+brake assembly mass).
+                wheelInertia = 0.5f * tireMass * wheelRadius * wheelRadius;
                 _baseLocalRotation = wheelmeshToRotate.localRotation;
             }
         }
@@ -118,11 +140,12 @@ namespace CargoKing.Car
                 carBody.AddForceAtPosition(CalculateTireForces(gripForcePoint), gripForcePoint);
 
                 _debugFrame = transform.rotation;
-                VisualWheelRotation(rollDirection, tireWorldVelocity);
             }
             else
             {
-                // Wheel in the air: reset the display values, or the old arrows stay put.
+                // Wheel in the air: reset the display values, or the old arrows stay put. Reaction
+                // torques go to zero too - there is no contact patch to push back through, so the
+                // wheel keeps spinning under driveTorque alone (or coasts under its own inertia).
                 isGrounded = false;
                 extensionRatio = 1f;
                 _debugFrame = transform.rotation;
@@ -135,14 +158,29 @@ namespace CargoKing.Car
                 rollResistanceLimit = 0f;
                 rollStopLimit = 0f;
                 rollForceAtStopLimit = false;
+                driveReactionTorque = 0f;
+                resistiveReactionTorque = 0f;
             }
+
+            IntegrateWheelRotation();
+            VisualWheelRotation();
         }
 
-        private void VisualWheelRotation(Vector3 rollDirection, Vector3 tireWorldVelocity)
+        /// <summary>
+        /// driveTorque minus whatever the ground (or the brake, direct on the axle) pushes back
+        /// with. Runs every FixedUpdate regardless of ground contact - driveReactionTorque and
+        /// resistiveReactionTorque come from the tire force calculation while grounded, and are
+        /// reset to 0 above while airborne.
+        /// </summary>
+        private void IntegrateWheelRotation()
         {
-            float v = Vector3.Dot(rollDirection, tireWorldVelocity);
-            float omega = v / wheelRadius;
-            float deltaDeg = omega * Time.fixedDeltaTime * Mathf.Rad2Deg;
+            float netTorque = driveTorque - driveReactionTorque - resistiveReactionTorque;
+            wheelAngularVelocity += netTorque / wheelInertia * Time.fixedDeltaTime;
+        }
+
+        private void VisualWheelRotation()
+        {
+            float deltaDeg = wheelAngularVelocity * Time.fixedDeltaTime * Mathf.Rad2Deg;
             _spinAngle = Mathf.Repeat(_spinAngle + deltaDeg, 360f);
             wheelmeshToRotate.localRotation = _baseLocalRotation * Quaternion.Euler(0f, -_spinAngle, 0f);
         }
