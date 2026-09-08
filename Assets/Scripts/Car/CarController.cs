@@ -150,6 +150,10 @@ namespace CargoKing.Car
         private void ApplyThrottle(float throttle, bool clutchHeld, bool restartEngine)
         {
             DebugGraph.Plot("Throttle", throttle, 0f, 1f);
+            DebugGraph.Plot("Drivetrain", "Engine RPM", carEngine.revolutionsPerMinute, 0f, carEngine.maxRevolutions);
+            DebugGraph.Plot("Drivetrain", "Clutch State", (float)carEngine.clutchState, 0f, 2f);
+            DebugGraph.Plot("Drivetrain", "Rear L Wheel RPM", DriveTrainMath.AngularVelocityToRpm(rearLeftSuspension.wheelAngularVelocity), -2000f, 8000f);
+            DebugGraph.Plot("Drivetrain", "Rear R Wheel RPM", DriveTrainMath.AngularVelocityToRpm(rearRightSuspension.wheelAngularVelocity), -2000f, 8000f);
 
             // 1-step lag against Suspension's own FixedUpdate is expected and harmless here (same
             // as the engine reading last step's wheel speed below): whichever of the two runs
