@@ -48,6 +48,14 @@ namespace CargoKing.Car
 
         [Header("Wheel Rotation")]
         /// <summary>
+        /// Wheel + tire + brake assembly mass, kg. Deliberately separate from tireMass (= carBody
+        /// mass / 4, tuned for body-force clamps): the wheel's own rotational inertia has nothing
+        /// to do with a quarter of the car's mass, and using that there made the wheel roughly
+        /// 10x too sluggish to spin down under braking or rolling resistance.
+        /// </summary>
+        public float wheelAssemblyMass = 20f;
+
+        /// <summary>
         /// Radians/second, positive = tire surface moving in the same direction as
         /// <see cref="rollDirection"/>. Integrated from net torque every FixedUpdate - not
         /// re-derived from ground velocity, so it keeps turning under drive torque even with no
@@ -100,9 +108,8 @@ namespace CargoKing.Car
             {
                 wheelRadius = wheelMesh.localScale.z / 2; // Unit in meters
                 tireMass = carBody.mass / 4;
-                // Solid-disk approximation - good enough given the tire's own mass is already a
-                // simplification (carBody.mass / 4, not a measured wheel+tire+brake assembly mass).
-                wheelInertia = 0.5f * tireMass * wheelRadius * wheelRadius;
+                // Solid-disk approximation using the wheel's own assembly mass, not tireMass.
+                wheelInertia = 0.5f * wheelAssemblyMass * wheelRadius * wheelRadius;
                 _baseLocalRotation = wheelmeshToRotate.localRotation;
             }
         }
