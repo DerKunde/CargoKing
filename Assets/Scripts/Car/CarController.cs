@@ -152,6 +152,8 @@ namespace CargoKing.Car
             DebugGraph.Plot("Throttle", throttle, 0f, 1f);
             DebugGraph.Plot("Drivetrain", "Engine RPM", carEngine.revolutionsPerMinute, 0f, carEngine.maxRevolutions);
             DebugGraph.Plot("Drivetrain", "Clutch State", (float)carEngine.clutchState, 0f, 2f);
+            DebugGraph.Plot("Drivetrain", "Combustion Torque", carEngine.debugCombustionTorque, -50f, 300f);
+            DebugGraph.Plot("Drivetrain", "Friction Torque", carEngine.debugFrictionTorque, 0f, 50f);
             DebugGraph.Plot("Drivetrain", "Rear L Wheel RPM", DriveTrainMath.AngularVelocityToRpm(rearLeftSuspension.wheelAngularVelocity), -2000f, 8000f);
             DebugGraph.Plot("Drivetrain", "Rear R Wheel RPM", DriveTrainMath.AngularVelocityToRpm(rearRightSuspension.wheelAngularVelocity), -2000f, 8000f);
 
