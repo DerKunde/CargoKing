@@ -56,6 +56,17 @@ namespace CargoKing.Car
         public float wheelAssemblyMass = 20f;
 
         /// <summary>
+        /// Longitudinal grip force per m/s of slip between the tire's surface speed and the
+        /// ground, N/(m/s). Deliberately NOT a "cancel all slip this frame" gain like the lateral
+        /// force uses (desiredAcceleration = ... / Time.fixedDeltaTime): that style's implicit
+        /// gain, fed back through driveReactionTorque onto the wheel's own (small) inertia,
+        /// overshoots and oscillates once wheelInertia is a realistic wheel mass rather than a
+        /// quarter of the car - the lateral force stays stable because it only ever acts on the
+        /// heavy car body, never on the wheel's own spin.
+        /// </summary>
+        public float driveSlipStiffness = 250f;
+
+        /// <summary>
         /// Radians/second, positive = tire surface moving in the same direction as
         /// <see cref="rollDirection"/>. Integrated from net torque every FixedUpdate - not
         /// re-derived from ground velocity, so it keeps turning under drive torque even with no
@@ -231,12 +242,14 @@ namespace CargoKing.Car
             float forwardVel = Vector3.Dot(rollDirection, tireWorldVelocity);
             float normalForce = Mathf.Max(0f, suspensionForce.y);
 
-            // Drive: tries to close the gap between the tire's own surface speed and the ground.
+            // Drive: proportional to the gap between the tire's own surface speed and the ground.
             // This is what actually moves the car now - its sign follows wheel spin vs. ground
-            // speed, not forwardVel, so it can push the car forward from a standstill.
+            // speed, not forwardVel, so it can push the car forward from a standstill. See
+            // driveSlipStiffness for why this is a plain proportional force, not the "cancel the
+            // error this frame" style the lateral force above uses.
             float wheelSurfaceSpeed = wheelAngularVelocity * wheelRadius;
             float slipVelocity = wheelSurfaceSpeed - forwardVel;
-            float driveDemand = tireMass * (slipVelocity * tireGripFactor) / Time.fixedDeltaTime;
+            float driveDemand = driveSlipStiffness * slipVelocity;
 
             // Rolling resistance is a constant force against the roll direction. Only a constant
             // force stops the car in finite time; damping proportional to v decays with v and
