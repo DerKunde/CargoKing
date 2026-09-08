@@ -140,23 +140,26 @@ namespace CargoKing.Car
         public void Drive(in DrivingInput input)
         {
             ApplyGearShift(input.Shift);
-            ApplyThrottle(input.Throttle);
+            ApplyThrottle(input.Throttle, input.Clutch, input.RestartEngine);
             ApplySteering(input.Steer);
             ApplyBraking(input.Brake);
 
             carEngine.speedInKmH = Vector3.Dot(carBody.linearVelocity, transform.forward) * 3.6f;
         }
 
-        private void ApplyThrottle(float throttle)
+        private void ApplyThrottle(float throttle, bool clutchHeld, bool restartEngine)
         {
             DebugGraph.Plot("Throttle", throttle, 0f, 1f);
 
-            float totalWheelTorqueInNewton = carEngine.CalculateWheelTorque(throttle, Vector3.Dot(carBody.linearVelocity, transform.forward));
-            if(throttle > 0f)
-            {
-                carBody.AddForceAtPosition(transform.forward * totalWheelTorqueInNewton / 2, rearLeftWheel.position);
-                carBody.AddForceAtPosition(transform.forward * totalWheelTorqueInNewton / 2, rearRightWheel.position);
-            }
+            // 1-step lag against Suspension's own FixedUpdate is expected and harmless here (same
+            // as the engine reading last step's wheel speed below): whichever of the two runs
+            // first each frame, the pairing is consistent step to step, not different frame to
+            // frame, so it settles like any other semi-implicit coupling.
+            float driveWheelAngularVelocityAvg = (rearLeftSuspension.wheelAngularVelocity + rearRightSuspension.wheelAngularVelocity) * 0.5f;
+            float driveTorque = carEngine.Tick(throttle, driveWheelAngularVelocityAvg, clutchHeld, restartEngine, Time.fixedDeltaTime);
+
+            rearLeftSuspension.driveTorque = driveTorque * 0.5f;
+            rearRightSuspension.driveTorque = driveTorque * 0.5f;
         }
 
         private void ApplyGearShift(GearShift shift)
@@ -165,7 +168,15 @@ namespace CargoKing.Car
             {
                 // ChangeGear wants m/s. Not carEngine.speedInKmH: wrong unit, and it is only
                 // written further down in Drive().
-                carEngine.ChangeGear(shift, CarSpeedInMS());
+                bool changed = carEngine.ChangeGear(shift, CarSpeedInMS());
+                if (changed)
+                {
+                    // A quick auto-clutch blip so the shift does not slam the driveline - the same
+                    // slip-based clutch model the player uses at launch, just started by the game
+                    // instead of the player, and never exposed to stall risk since it is not
+                    // player-timed.
+                    carEngine.BeginAutoClutchBlend();
+                }
             }
         }
 
