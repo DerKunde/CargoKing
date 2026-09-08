@@ -65,6 +65,9 @@ namespace CargoKing.Car
         public bool engineStalled = false;
         public float gearboxRevolutions;
         public float revLimiterFactor = 1f;
+        public float debugCombustionTorque;
+        public float debugFrictionTorque;
+        public float debugClutchReactionTorque;
 
         private float restartTimer = -1f;
         private float shiftBlendTimer = 0f;
@@ -125,6 +128,10 @@ namespace CargoKing.Car
             // held/slipping (declutched) engine actually settle back towards idle instead of
             // holding whatever RPM it was last revved to.
             float friction = engineFrictionTorque * (revolutionsPerMinute / maxRevolutions);
+
+            debugCombustionTorque = combustionTorque * revLimiterFactor;
+            debugFrictionTorque = friction;
+            debugClutchReactionTorque = clutchReactionTorque;
 
             // Idle governor: with the clutch fully disengaged there is no load pulling the engine
             // down at all, so a real idle circuit holds it at idleRevolutions no matter how low
