@@ -221,12 +221,20 @@ namespace CargoKing.Car
             float effMass = EffectiveMassAt(forcePoint, lateralAxis);
             float lateralDemand = effMass * desiredAcceleration;
 
-            // Rolling resistance is a constant force against the roll direction. Only a constant
-            // force stops the car in finite time; damping proportional to v decays with v and
-            // creeps on forever.
             float forwardVel = Vector3.Dot(rollDirection, tireWorldVelocity);
             float normalForce = Mathf.Max(0f, suspensionForce.y);
 
+            // Drive: tries to close the gap between the tire's own surface speed and the ground.
+            // This is what actually moves the car now - its sign follows wheel spin vs. ground
+            // speed, not forwardVel, so it can push the car forward from a standstill.
+            float wheelSurfaceSpeed = wheelAngularVelocity * wheelRadius;
+            float slipVelocity = wheelSurfaceSpeed - forwardVel;
+            float driveDemand = tireMass * (slipVelocity * tireGripFactor) / Time.fixedDeltaTime;
+
+            // Rolling resistance is a constant force against the roll direction. Only a constant
+            // force stops the car in finite time; damping proportional to v decays with v and
+            // creeps on forever.
+            //
             // Anti-reversal clamp below: never more force than it takes to bring forwardVel to
             // zero this step, otherwise the resistance pushes the standing car backwards and it
             // jitters around zero. At forwardVel == 0 the limit is 0, so Mathf.Sign(0) == 1
@@ -235,22 +243,22 @@ namespace CargoKing.Car
             // Reference mass is tireMass (= carBody.mass / 4), NOT EffectiveMassAt: four wheels
             // act on the same body, so each may only claim its quarter of the total impulse.
             // With EffectiveMassAt the four together brake with a multiple of the needed
-            // impulse and the car oscillates.
+            // impulse and the car oscillates. Same reasoning applies to driveDemand above.
             brakeForceDemand = brakeInput * maxBrakeForce;
             rollResistanceLimit = rollingResistanceCoefficient * normalForce;
+            rollStopLimit = Mathf.Abs(forwardVel) * tireMass / Time.fixedDeltaTime;
+            float resistiveMagnitude = Mathf.Min(brakeForceDemand + rollResistanceLimit, rollStopLimit);
+            rollForceAtStopLimit = rollStopLimit < brakeForceDemand + rollResistanceLimit;
+            float resistiveDemand = -Mathf.Sign(forwardVel) * resistiveMagnitude;
 
             // A tire cannot pass on more than its share of the load allows. This is the budget for
-            // everything the contact patch does, sideways and lengthways together.
+            // everything the contact patch does - cornering, braking and now driving too.
             gripLimit = brakeFrictionCoefficient * normalForce;
-            rollStopLimit = Mathf.Abs(forwardVel) * tireMass / Time.fixedDeltaTime;
+            float longitudinalDemand = driveDemand + resistiveDemand;
 
-            // Both are longitudinal resistive forces and are summed BEFORE the clamps. Clamped
-            // separately they exceed the stopping impulse together - same failure as above.
-            float longitudinalDemand = Mathf.Min(brakeForceDemand + rollResistanceLimit, rollStopLimit);
-            rollForceAtStopLimit = rollStopLimit < brakeForceDemand + rollResistanceLimit;
-
-            // Friction circle. One contact patch serves cornering and braking, so both draw on the
-            // same budget and are scaled down together when they ask for more than it holds.
+            // Friction circle. One contact patch serves cornering, braking and driving, so all
+            // three draw on the same budget and are scaled down together when they ask for more
+            // than it holds.
             //
             // The lateral force used to have no limit at all - only the longitudinal part was checked
             // against the load. A tire could therefore corner at any force its slip called for, the
@@ -260,8 +268,16 @@ namespace CargoKing.Car
             float scale = combined > gripLimit && combined > 0f ? gripLimit / combined : 1f;
 
             tireSlip = lateralAxis * (lateralDemand * scale);
-            tireLongitudinalForce = -Mathf.Sign(forwardVel) * rollDirection * (longitudinalDemand * scale);
+            tireLongitudinalForce = rollDirection * (longitudinalDemand * scale);
             tireForce = tireSlip + tireLongitudinalForce;
+
+            // Wheel-side reaction, kept separate from the body force above: the ground's reaction
+            // to the drive-slip force opposes the wheel's own spin (Newton's third law, drive path
+            // only). Brake and rolling resistance act directly on the wheel/axle and always oppose
+            // its current spin direction - not the body's; the two only agree while the wheel
+            // rolls without slipping.
+            driveReactionTorque = driveDemand * scale * wheelRadius;
+            resistiveReactionTorque = -Mathf.Sign(wheelAngularVelocity) * resistiveMagnitude * scale * wheelRadius;
 
             return tireForce;
         }
