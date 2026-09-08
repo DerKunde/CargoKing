@@ -43,7 +43,7 @@ namespace CargoKing.Car
         /// the full engine-braking feature (GitHub #9, still deferred - that one feeds drag into
         /// the wheels while the clutch is locked); this only acts on the engine's own RPM.
         /// </summary>
-        public float engineFrictionTorque = 40f;
+        public float engineFrictionTorque = 10f;
 
         [Header("Clutch")]
         public float clutchStiffness = 0.2f;
