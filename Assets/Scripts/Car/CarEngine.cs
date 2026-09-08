@@ -126,9 +126,16 @@ namespace CargoKing.Car
             // holding whatever RPM it was last revved to.
             float friction = engineFrictionTorque * (revolutionsPerMinute / maxRevolutions);
 
+            // Idle governor: with the clutch fully disengaged there is no load pulling the engine
+            // down at all, so a real idle circuit holds it at idleRevolutions no matter how low
+            // throttle goes - it never just decays to a stop. While Slipping there IS a load (the
+            // driveline dragging through the clutch), so the floor stays at 0 there: that load is
+            // exactly what can pull RPM down into a stall, which is the point of the mechanic.
+            float rpmFloor = clutchState == ClutchState.Held ? idleRevolutions : 0f;
+
             revolutionsPerMinute = Mathf.Clamp(
                 DriveTrainMath.IntegrateEngineRpm(revolutionsPerMinute, combustionTorque * revLimiterFactor - friction, clutchReactionTorque, engineInertia, rpmChangeSpeed, deltaTime),
-                0f,
+                rpmFloor,
                 maxRevolutions);
 
             if (DriveTrainMath.IsStalled(revolutionsPerMinute, stallRpm))
