@@ -1058,6 +1058,24 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "Clutch",
+                    "type": "Button",
+                    "id": "3a6b2c1d-9e44-4b7a-8f21-6a2d9c7e5b10",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "RestartEngine",
+                    "type": "Button",
+                    "id": "7f1e4a2b-3c88-4d5e-9a10-2b6f8d3c4e91",
+                    "expectedControlType": "",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -1245,6 +1263,28 @@
                     "processors": "",
                     "groups": ";Gamepad",
                     "action": "ShiftDown",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "5c2d8e91-4a3b-4f6c-8d21-9e7a1b5c3f04",
+                    "path": "<Keyboard>/leftShift",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "Clutch",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "9b4f6a2c-1d8e-4c3a-a915-6f2b8d4c7e30",
+                    "path": "<Keyboard>/f",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": ";Keyboard&Mouse",
+                    "action": "RestartEngine",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
