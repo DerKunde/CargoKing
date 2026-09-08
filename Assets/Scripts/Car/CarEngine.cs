@@ -36,6 +36,15 @@ namespace CargoKing.Car
         [Header("Engine (rotating mass)")]
         public float engineInertia = 0.15f;
 
+        /// <summary>
+        /// Internal engine friction/pumping loss, N*m at max RPM, scaled linearly down to 0 at
+        /// standstill. Always opposes engine rotation, throttle or not - without it a declutched,
+        /// off-throttle engine is a frictionless flywheel and never returns to idle. This is not
+        /// the full engine-braking feature (GitHub #9, still deferred - that one feeds drag into
+        /// the wheels while the clutch is locked); this only acts on the engine's own RPM.
+        /// </summary>
+        public float engineFrictionTorque = 40f;
+
         [Header("Clutch")]
         public float clutchStiffness = 0.2f;
         public float maxClutchTorque = 220f;
@@ -112,8 +121,13 @@ namespace CargoKing.Car
                 ? 0f
                 : DriveTrainMath.ClutchTorque(revolutionsPerMinute, gearboxRevolutions, clutchStiffness, maxClutchTorque);
 
+            // Internal friction always opposes rotation, throttle or not - this is what lets a
+            // held/slipping (declutched) engine actually settle back towards idle instead of
+            // holding whatever RPM it was last revved to.
+            float friction = engineFrictionTorque * (revolutionsPerMinute / maxRevolutions);
+
             revolutionsPerMinute = Mathf.Clamp(
-                DriveTrainMath.IntegrateEngineRpm(revolutionsPerMinute, combustionTorque * revLimiterFactor, clutchReactionTorque, engineInertia, rpmChangeSpeed, deltaTime),
+                DriveTrainMath.IntegrateEngineRpm(revolutionsPerMinute, combustionTorque * revLimiterFactor - friction, clutchReactionTorque, engineInertia, rpmChangeSpeed, deltaTime),
                 0f,
                 maxRevolutions);
 
