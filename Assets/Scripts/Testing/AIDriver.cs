@@ -24,6 +24,12 @@ namespace CargoKing.Testing
         private const int FirstGear = 1;
         private const float DrivingThrottle = 0.2f;
 
+        /// <summary>How long the deterministic launch sequence holds the clutch while ramping throttle.</summary>
+        private const float LaunchRevTime = 0.6f;
+
+        /// <summary>Below this speed a launch sequence may (re-)start.</summary>
+        private const float LaunchStandstillSpeed = 0.1f;
+
         /// <summary>Shift only below this fraction of maxReverseShiftSpeed, so the gearbox does not refuse.</summary>
         private const float ShiftSpeedSafety = 0.8f;
 
@@ -46,6 +52,7 @@ namespace CargoKing.Testing
 
         private float lastSign = 0f;
         private ManeuverState state = ManeuverState.Forward;
+        private float launchTimer = -1f;
         private float reverseStartedAt;
         private float reverseBlockedUntil;
 
@@ -155,6 +162,14 @@ namespace CargoKing.Testing
 
         private void DriveForward(float distanceToTarget, float angleToDirection)
         {
+            float steerInput = CalculateNeededSteeringInput(angleToDirection);
+
+            if (TryLaunch(steerInput, out DrivingInput launchInput))
+            {
+                carController.Drive(launchInput);
+                return;
+            }
+
             float throttleInput = DrivingThrottle;
             float brakeInput = 0f;
 
@@ -164,8 +179,7 @@ namespace CargoKing.Testing
                 throttleInput = 0f;
             }
 
-            float steerInput = CalculateNeededSteeringInput(angleToDirection);
-            carController.Drive(new DrivingInput(steerInput, throttleInput, brakeInput, false, GearShift.None));
+            carController.Drive(new DrivingInput(steerInput, throttleInput, brakeInput, false, GearShift.None, false, false));
         }
 
         private void DriveInReverse(float angleToDirection)
@@ -173,7 +187,52 @@ namespace CargoKing.Testing
             // Yaw rate is (v / wheelbase) * tan(steerAngle), so a negative v turns the car the
             // other way for the same command. Inverting keeps the nose pulling towards the target.
             float steerInput = -CalculateNeededSteeringInput(angleToDirection);
-            carController.Drive(new DrivingInput(steerInput, DrivingThrottle, 0f, false, GearShift.None));
+
+            if (TryLaunch(steerInput, out DrivingInput launchInput))
+            {
+                carController.Drive(launchInput);
+                return;
+            }
+
+            carController.Drive(new DrivingInput(steerInput, DrivingThrottle, 0f, false, GearShift.None, false, false));
+        }
+
+        /// <summary>
+        /// A deterministic stand-in for the player's rev-and-release launch technique: hold the
+        /// clutch, ramp the throttle open over a fixed time, then release. Not meant to be
+        /// skillful - just reliable enough that the maneuver test keeps exercising the full
+        /// drivetrain (Suspension + CarEngine + CarController) from a standing start.
+        /// </summary>
+        private bool TryLaunch(float steerInput, out DrivingInput input)
+        {
+            bool atStandstill = carController.CarSpeedInMS() < LaunchStandstillSpeed;
+
+            if (atStandstill && launchTimer < 0f)
+            {
+                launchTimer = 0f;
+            }
+            else if (!atStandstill)
+            {
+                launchTimer = -1f;
+            }
+
+            if (launchTimer < 0f)
+            {
+                input = default;
+                return false;
+            }
+
+            if (launchTimer >= LaunchRevTime)
+            {
+                launchTimer = -1f;
+                input = default;
+                return false;
+            }
+
+            launchTimer += Time.fixedDeltaTime;
+            float throttle = Mathf.Clamp01(launchTimer / LaunchRevTime);
+            input = new DrivingInput(steerInput, throttle, 0f, false, GearShift.None, true, false);
+            return true;
         }
 
         /// <summary>
@@ -191,7 +250,7 @@ namespace CargoKing.Testing
                 shift = currentGear > targetGear ? GearShift.Down : GearShift.Up;
             }
 
-            carController.Drive(new DrivingInput(0f, 0f, 1f, false, shift));
+            carController.Drive(new DrivingInput(0f, 0f, 1f, false, shift, false, false));
         }
 
         private bool IsTargetInsideTurningCircle(float radiusFactor)
