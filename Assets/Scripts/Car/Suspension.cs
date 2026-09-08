@@ -277,7 +277,7 @@ namespace CargoKing.Car
             // its current spin direction - not the body's; the two only agree while the wheel
             // rolls without slipping.
             driveReactionTorque = driveDemand * scale * wheelRadius;
-            resistiveReactionTorque = -Mathf.Sign(wheelAngularVelocity) * resistiveMagnitude * scale * wheelRadius;
+            resistiveReactionTorque = Mathf.Sign(wheelAngularVelocity) * resistiveMagnitude * scale * wheelRadius;
 
             return tireForce;
         }
