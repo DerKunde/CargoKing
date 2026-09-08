@@ -1144,6 +1144,24 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Clutch"",
+                    ""type"": ""Button"",
+                    ""id"": ""3a6b2c1d-9e44-4b7a-8f21-6a2d9c7e5b10"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""RestartEngine"",
+                    ""type"": ""Button"",
+                    ""id"": ""7f1e4a2b-3c88-4d5e-9a10-2b6f8d3c4e91"",
+                    ""expectedControlType"": """",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -1333,6 +1351,28 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
                     ""action"": ""ShiftDown"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""5c2d8e91-4a3b-4f6c-8d21-9e7a1b5c3f04"",
+                    ""path"": ""<Keyboard>/leftShift"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""Clutch"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""9b4f6a2c-1d8e-4c3a-a915-6f2b8d4c7e30"",
+                    ""path"": ""<Keyboard>/f"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": "";Keyboard&Mouse"",
+                    ""action"": ""RestartEngine"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -1432,6 +1472,8 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         m_Driving_ResetCar = m_Driving.FindAction("ResetCar", throwIfNotFound: true);
         m_Driving_ShiftUp = m_Driving.FindAction("ShiftUp", throwIfNotFound: true);
         m_Driving_ShiftDown = m_Driving.FindAction("ShiftDown", throwIfNotFound: true);
+        m_Driving_Clutch = m_Driving.FindAction("Clutch", throwIfNotFound: true);
+        m_Driving_RestartEngine = m_Driving.FindAction("RestartEngine", throwIfNotFound: true);
     }
 
     ~@InputSystem_Actions()
@@ -1900,6 +1942,8 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
     private readonly InputAction m_Driving_ResetCar;
     private readonly InputAction m_Driving_ShiftUp;
     private readonly InputAction m_Driving_ShiftDown;
+    private readonly InputAction m_Driving_Clutch;
+    private readonly InputAction m_Driving_RestartEngine;
     /// <summary>
     /// Provides access to input actions defined in input action map "Driving".
     /// </summary>
@@ -1939,6 +1983,14 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Driving/ShiftDown".
         /// </summary>
         public InputAction @ShiftDown => m_Wrapper.m_Driving_ShiftDown;
+        /// <summary>
+        /// Provides access to the underlying input action "Driving/Clutch".
+        /// </summary>
+        public InputAction @Clutch => m_Wrapper.m_Driving_Clutch;
+        /// <summary>
+        /// Provides access to the underlying input action "Driving/RestartEngine".
+        /// </summary>
+        public InputAction @RestartEngine => m_Wrapper.m_Driving_RestartEngine;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -1986,6 +2038,12 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @ShiftDown.started += instance.OnShiftDown;
             @ShiftDown.performed += instance.OnShiftDown;
             @ShiftDown.canceled += instance.OnShiftDown;
+            @Clutch.started += instance.OnClutch;
+            @Clutch.performed += instance.OnClutch;
+            @Clutch.canceled += instance.OnClutch;
+            @RestartEngine.started += instance.OnRestartEngine;
+            @RestartEngine.performed += instance.OnRestartEngine;
+            @RestartEngine.canceled += instance.OnRestartEngine;
         }
 
         /// <summary>
@@ -2018,6 +2076,12 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
             @ShiftDown.started -= instance.OnShiftDown;
             @ShiftDown.performed -= instance.OnShiftDown;
             @ShiftDown.canceled -= instance.OnShiftDown;
+            @Clutch.started -= instance.OnClutch;
+            @Clutch.performed -= instance.OnClutch;
+            @Clutch.canceled -= instance.OnClutch;
+            @RestartEngine.started -= instance.OnRestartEngine;
+            @RestartEngine.performed -= instance.OnRestartEngine;
+            @RestartEngine.canceled -= instance.OnRestartEngine;
         }
 
         /// <summary>
@@ -2321,5 +2385,19 @@ public partial class @InputSystem_Actions: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnShiftDown(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Clutch" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnClutch(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "RestartEngine" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnRestartEngine(InputAction.CallbackContext context);
     }
 }
