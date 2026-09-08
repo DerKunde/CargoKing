@@ -36,6 +36,8 @@ namespace CargoKing.Input
         [SerializeField] private float throttle;
         [SerializeField] private float brake;
         [SerializeField] private bool handbrake;
+        [SerializeField] private bool clutch;
+        [SerializeField] private bool restartEngine;
 
         /// <summary>Steering wheel position, -1 (left) to 1 (right).</summary>
         public float Steer => steer;
@@ -48,6 +50,12 @@ namespace CargoKing.Input
 
         /// <summary>Handbrake, pressed or not.</summary>
         public bool Handbrake => handbrake;
+
+        /// <summary>Clutch, held or not. Effective at any speed or gear.</summary>
+        public bool Clutch => clutch;
+
+        /// <summary>Restart request. Only acted on while the engine is stalled.</summary>
+        public bool RestartEngine => restartEngine;
 
         private InputSystem_Actions actions;
 
@@ -94,6 +102,8 @@ namespace CargoKing.Input
             throttle = 0f;
             brake = 0f;
             handbrake = false;
+            clutch = false;
+            restartEngine = false;
             shiftUpPending = false;
             shiftDownPending = false;
             resetPending = false;
@@ -121,6 +131,8 @@ namespace CargoKing.Input
             throttle = throttleIsDigital ? ApplyResponse(throttleCurve, throttleTravel) : throttleTravel;
             brake = brakeIsDigital ? ApplyResponse(brakeCurve, brakeTravel) : brakeTravel;
             handbrake = actions.Driving.Handbrake.IsPressed();
+            clutch = actions.Driving.Clutch.IsPressed();
+            restartEngine = actions.Driving.RestartEngine.IsPressed();
         }
 
         /// <summary>Reports a reset request and consumes it in the process.</summary>
@@ -220,7 +232,7 @@ namespace CargoKing.Input
             }
 
             lastSampleTime = Time.fixedTime;
-            lastSample = new DrivingInput(steer, throttle, brake, handbrake, ConsumeShift());
+            lastSample = new DrivingInput(steer, throttle, brake, handbrake, ConsumeShift(), clutch, restartEngine);
             return lastSample;
         }
     }

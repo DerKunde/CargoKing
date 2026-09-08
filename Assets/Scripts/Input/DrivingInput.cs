@@ -25,14 +25,25 @@ namespace CargoKing.Input
         /// Change request for gear change
         /// </summary>
         public readonly GearShift Shift;
+        /// <summary>
+        /// Clutch held: true disengages the clutch (engine free-revs, no drive torque reaches the
+        /// wheels). Effective at any speed or gear, not only at launch.
+        /// </summary>
+        public readonly bool Clutch;
+        /// <summary>
+        /// Restart request. Only acted on while the engine is stalled.
+        /// </summary>
+        public readonly bool RestartEngine;
 
-        public DrivingInput(float steer, float throttle, float brake, bool handbrake, GearShift shift)
+        public DrivingInput(float steer, float throttle, float brake, bool handbrake, GearShift shift, bool clutch, bool restartEngine)
         {
             Steer = steer;
             Throttle = throttle;
             Brake = brake;
             Handbrake = handbrake;
             Shift = shift;
+            Clutch = clutch;
+            RestartEngine = restartEngine;
         }
 
         /// <summary>
