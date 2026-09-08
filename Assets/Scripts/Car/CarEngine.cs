@@ -37,13 +37,18 @@ namespace CargoKing.Car
         public float engineInertia = 0.15f;
 
         /// <summary>
-        /// Internal engine friction/pumping loss, N*m at max RPM, scaled linearly down to 0 at
-        /// standstill. Always opposes engine rotation, throttle or not - without it a declutched,
-        /// off-throttle engine is a frictionless flywheel and never returns to idle. This is not
-        /// the full engine-braking feature (GitHub #9, still deferred - that one feeds drag into
-        /// the wheels while the clutch is locked); this only acts on the engine's own RPM.
+        /// Internal engine friction/pumping loss, N*m at max RPM, scaled down towards standstill
+        /// by the SQUARE of the RPM fraction (pumping losses grow faster than linearly with
+        /// speed) - not linear: a linear scale forces this value to stay small everywhere just to
+        /// stay under whatever torque the curve gives at idle, leaving high-RPM engine braking
+        /// too weak. Quadratic gives idle plenty of headroom while still landing at this full
+        /// value at max RPM. Always opposes engine rotation, throttle or not - without it a
+        /// declutched, off-throttle engine is a frictionless flywheel and never returns to idle.
+        /// This is not the full engine-braking feature (GitHub #9, still deferred - that one
+        /// feeds drag into the wheels while the clutch is locked); this only acts on the engine's
+        /// own RPM.
         /// </summary>
-        public float engineFrictionTorque = 10f;
+        public float engineFrictionTorque = 90f;
 
         [Header("Clutch")]
         public float clutchStiffness = 0.2f;
@@ -127,7 +132,8 @@ namespace CargoKing.Car
             // Internal friction always opposes rotation, throttle or not - this is what lets a
             // held/slipping (declutched) engine actually settle back towards idle instead of
             // holding whatever RPM it was last revved to.
-            float friction = engineFrictionTorque * (revolutionsPerMinute / maxRevolutions);
+            float rpmFraction = revolutionsPerMinute / maxRevolutions;
+            float friction = engineFrictionTorque * rpmFraction * rpmFraction;
 
             debugCombustionTorque = combustionTorque * revLimiterFactor;
             debugFrictionTorque = friction;
