@@ -151,18 +151,35 @@ namespace CargoKing.Car
         {
             DebugGraph.Plot("Throttle", throttle, 0f, 1f);
             DebugGraph.Plot("Drivetrain", "Engine RPM", carEngine.revolutionsPerMinute, 0f, carEngine.maxRevolutions);
-            DebugGraph.Plot("Drivetrain", "Clutch State", (float)carEngine.clutchState, 0f, 2f);
+            DebugGraph.Plot("Drivetrain", "Clutch Reaction Torque", carEngine.debugClutchReactionTorque, -230f, 230f);
             DebugGraph.Plot("Drivetrain", "Combustion Torque", carEngine.debugCombustionTorque, -50f, 300f);
             DebugGraph.Plot("Drivetrain", "Friction Torque", carEngine.debugFrictionTorque, 0f, 50f);
             DebugGraph.Plot("Drivetrain", "Rear L Wheel RPM", DriveTrainMath.AngularVelocityToRpm(rearLeftSuspension.wheelAngularVelocity), -2000f, 8000f);
             DebugGraph.Plot("Drivetrain", "Rear R Wheel RPM", DriveTrainMath.AngularVelocityToRpm(rearRightSuspension.wheelAngularVelocity), -2000f, 8000f);
 
-            // 1-step lag against Suspension's own FixedUpdate is expected and harmless here (same
-            // as the engine reading last step's wheel speed below): whichever of the two runs
-            // first each frame, the pairing is consistent step to step, not different frame to
-            // frame, so it settles like any other semi-implicit coupling.
-            float driveWheelAngularVelocityAvg = (rearLeftSuspension.wheelAngularVelocity + rearRightSuspension.wheelAngularVelocity) * 0.5f;
-            float driveTorque = carEngine.Tick(throttle, driveWheelAngularVelocityAvg, clutchHeld, restartEngine, Time.fixedDeltaTime);
+            // Reads zero whenever the clutch is closed, because a closed clutch is solved as a
+            // rigid constraint. Anything else means it is slipping - so this one line separates
+            // "the engine is being dragged down through the clutch" from "the driven wheels
+            // themselves are slowing and the engine is faithfully following them".
+            DebugGraph.Plot("Drivetrain", "Clutch Gap RPM", carEngine.revolutionsPerMinute - carEngine.gearboxRevolutions, -2000f, 2000f);
+
+            // How much of the tires' grip is left for driving once cornering has taken its share.
+            DebugGraph.Plot("Grip", "Rear L Grip Scale", rearLeftSuspension.gripScale, 0f, 1f);
+            DebugGraph.Plot("Grip", "Rear R Grip Scale", rearRightSuspension.gripScale, 0f, 1f);
+
+            // The driven wheels as the engine sees them: one rotating mass, plus whatever the road
+            // is doing to it. The engine needs the load as well as the speed because a closed
+            // clutch has to hold the two together against it - see DriveTrainMath.LockedClutchTorque.
+            //
+            // 1-step lag against Suspension's own FixedUpdate is expected and harmless here:
+            // whichever of the two runs first each frame, the pairing is consistent step to step,
+            // not different frame to frame, so it settles like any other semi-implicit coupling.
+            DrivelineLoad driveline = new DrivelineLoad(
+                (rearLeftSuspension.wheelAngularVelocity + rearRightSuspension.wheelAngularVelocity) * 0.5f,
+                rearLeftSuspension.WheelInertia + rearRightSuspension.WheelInertia,
+                rearLeftSuspension.ExternalTorque + rearRightSuspension.ExternalTorque);
+
+            float driveTorque = carEngine.Tick(throttle, driveline, clutchHeld, restartEngine, Time.fixedDeltaTime);
 
             rearLeftSuspension.driveTorque = driveTorque * 0.5f;
             rearRightSuspension.driveTorque = driveTorque * 0.5f;
@@ -173,16 +190,10 @@ namespace CargoKing.Car
             if(shift != GearShift.None)
             {
                 // ChangeGear wants m/s. Not carEngine.speedInKmH: wrong unit, and it is only
-                // written further down in Drive().
-                bool changed = carEngine.ChangeGear(shift, CarSpeedInMS());
-                if (changed)
-                {
-                    // A quick auto-clutch blip so the shift does not slam the driveline - the same
-                    // slip-based clutch model the player uses at launch, just started by the game
-                    // instead of the player, and never exposed to stall risk since it is not
-                    // player-timed.
-                    carEngine.BeginAutoClutchBlend();
-                }
+                // written further down in Drive(). The RPM jump a shift causes is absorbed by
+                // the same continuous clutch coupling as any other slip (CarEngine.Tick) - no
+                // separate blend step needed here any more.
+                carEngine.ChangeGear(shift, CarSpeedInMS());
             }
         }
 

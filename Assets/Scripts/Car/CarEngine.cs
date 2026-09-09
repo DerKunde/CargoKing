@@ -3,13 +3,6 @@ using UnityEngine;
 
 namespace CargoKing.Car
 {
-    public enum ClutchState
-    {
-        Held,
-        Slipping,
-        Locked
-    }
-
     public class CarEngine : MonoBehaviour
     {
         public AnimationCurve torqueCurve;
@@ -31,31 +24,64 @@ namespace CargoKing.Car
 
         public float idleRevolutions = 1000f;
         public float maxRevolutions = 6000f;
+
+        // Unused since removing the artificial RPM/s rate cap from DriveTrainMath.IntegrateEngineRpm:
+        // it created a two-phase (torque-limited, then suddenly capped) response with no physical
+        // basis. Left in place rather than deleted, per project convention on dead fields.
         public float rpmChangeSpeed = 3000f;
 
         [Header("Engine (rotating mass)")]
         public float engineInertia = 0.15f;
 
         /// <summary>
-        /// Internal engine friction/pumping loss, N*m at max RPM, scaled down towards standstill
-        /// by the SQUARE of the RPM fraction (pumping losses grow faster than linearly with
-        /// speed) - not linear: a linear scale forces this value to stay small everywhere just to
-        /// stay under whatever torque the curve gives at idle, leaving high-RPM engine braking
-        /// too weak. Quadratic gives idle plenty of headroom while still landing at this full
-        /// value at max RPM. Always opposes engine rotation, throttle or not - without it a
-        /// declutched, off-throttle engine is a frictionless flywheel and never returns to idle.
+        /// Engine friction and pumping loss at max RPM, N*m, falling off towards standstill along
+        /// the shape in DriveTrainMath.EngineFrictionTorque. Always opposes engine rotation,
+        /// throttle or not - without it a declutched, off-throttle engine is a frictionless
+        /// flywheel and never returns to idle.
+        ///
+        /// The default is the real closed-throttle drag of a 1.2 l naturally aspirated four
+        /// (FMEP + PMEP, roughly 3.2 bar at 6000 rpm), cross-checked against how fast such an
+        /// engine actually drops from 4000 rpm to idle. It used to sit at three times this, for
+        /// two reasons that have both since been dealt with: the torque curve was being charged
+        /// for friction twice (see DriveTrainMath.CombustionTorque), and idle was held by a
+        /// passive friction balance that needed a steep curve to settle at all (see
+        /// DriveTrainMath.IdleGovernorTorque).
+        ///
         /// This is not the full engine-braking feature (GitHub #9, still deferred - that one
-        /// feeds drag into the wheels while the clutch is locked); this only acts on the engine's
+        /// feeds drag into the wheels while the clutch is closed); this only acts on the engine's
         /// own RPM.
         /// </summary>
-        public float engineFrictionTorque = 90f;
+        public float engineFrictionTorque = 30f;
+
+        /// <summary>
+        /// Idle circuit gain, N*m per RPM below the idle target. Sets how quickly idle settles:
+        /// 0.05 brings the engine onto the target in about a second from just above it, and gives
+        /// the circuit some 35 N*m of authority at the stall threshold - enough to hold a clean
+        /// idle, nowhere near enough to save a dumped clutch.
+        /// </summary>
+        public float idleGovernorGain = 0.05f;
 
         [Header("Clutch")]
+
+        // Unused since the clutch became a solved constraint rather than a spring (see Tick):
+        // an engaged clutch has no stiffness to speak of, it simply holds. Left in place rather
+        // than deleted, per project convention on dead fields.
         public float clutchStiffness = 0.2f;
+
         public float maxClutchTorque = 220f;
+
+        // Unused since the clutch became a solved constraint (see Tick): whether it is locked is
+        // answered by whether the constraint torque fits inside maxClutchTorque, so there is no
+        // state left to detect with an epsilon check. Left in place rather than deleted.
         public float lockEpsilonRpm = 50f;
+
         public float stallRpm = 600f;
         public float restartDelay = 1f;
+
+        // Unused since the clutch became a solved constraint (see Tick): a gear shift changes the
+        // ratio, the constraint then asks for more than the plate can hold, and it slips until the
+        // two sides are back together - no special-cased blend window needed. Left in place rather
+        // than deleted.
         public float gearShiftClutchBlendDuration = 0.2f;
 
         [Header("Drehzahlbegrenzer")]
@@ -66,7 +92,6 @@ namespace CargoKing.Car
         public float speedInKmH;
         public int currentGear = 1;
         public bool isOnGasPadle = false;
-        public ClutchState clutchState = ClutchState.Locked;
         public bool engineStalled = false;
         public float gearboxRevolutions;
         public float revLimiterFactor = 1f;
@@ -75,7 +100,6 @@ namespace CargoKing.Car
         public float debugClutchReactionTorque;
 
         private float restartTimer = -1f;
-        private float shiftBlendTimer = 0f;
 
         private int rpmDivisor = 10000;
         private int torqueFactor = 1000;
@@ -89,8 +113,18 @@ namespace CargoKing.Car
         /// Advances the engine and clutch by one physics step and returns the torque (N*m) the
         /// driveline should apply at the gearbox output - CarController splits this between the
         /// driven wheels and hands it to Suspension.driveTorque.
+        ///
+        /// The clutch is not a Held/Slipping/Locked state machine and not a spring either. Engaged,
+        /// it is solved as a rigid constraint: DriveTrainMath.LockedClutchTorque returns the torque
+        /// that makes engine and driven wheels turn as one mass, and clamping that to
+        /// maxClutchTorque is what slipping means - a plate can only pass on so much before it
+        /// gives. So there is no state to track, no lock epsilon, and no special-cased blend after
+        /// a gear shift: a shift changes the ratio, the constraint asks for more than the plate can
+        /// hold, and it slips until the two are back together on its own.
+        ///
+        /// Held (pedal down) zeroes it and the engine is free to rev on its own inertia.
         /// </summary>
-        public float Tick(float throttle, float driveWheelAngularVelocityAvg, bool clutchHeld, bool restartRequested, float deltaTime)
+        public float Tick(float throttle, in DrivelineLoad driveline, bool clutchHeld, bool restartRequested, float deltaTime)
         {
             isOnGasPadle = throttle > 0f;
 
@@ -100,55 +134,48 @@ namespace CargoKing.Car
                 return 0f;
             }
 
-            gearboxRevolutions = DriveTrainMath.AngularVelocityToRpm(driveWheelAngularVelocityAvg) * DriveDirection * axleRatio * CurrentGearRation;
+            // Signed: gear, final drive and direction of travel in one number, so reverse needs no
+            // separate handling anywhere below.
+            float totalRatio = CurrentGearRation * axleRatio * DriveDirection;
+            gearboxRevolutions = DriveTrainMath.AngularVelocityToRpm(driveline.AngularVelocity) * totalRatio;
 
-            if (shiftBlendTimer > 0f)
-            {
-                shiftBlendTimer -= deltaTime;
-            }
+            // Friction is taken off the indicated torque here AND added back into it inside
+            // CombustionTorque, which is not redundant: it means full throttle nets out to exactly
+            // the torque curve (a curve is brake torque, already net of losses) while friction
+            // still governs idle and over-run. See DriveTrainMath.CombustionTorque.
+            float friction = DriveTrainMath.EngineFrictionTorque(revolutionsPerMinute, maxRevolutions, engineFrictionTorque);
+            float governorTorque = DriveTrainMath.IdleGovernorTorque(
+                revolutionsPerMinute, idleRevolutions, maxRevolutions, engineFrictionTorque, idleGovernorGain);
+            float combustionTorque = DriveTrainMath.CombustionTorque(
+                GetMaxTorqueForRPM(revolutionsPerMinute), friction, governorTorque, throttle);
 
-            UpdateClutchState(clutchHeld);
-
-            float combustionTorque = GetMaxTorqueForRPM(revolutionsPerMinute) * throttle;
-
-            if (clutchState == ClutchState.Locked)
-            {
-                // Rigid coupling: engine and driveline turn as one, exactly like a car with the
-                // clutch fully home. No slip loss, so wheel torque follows the torque curve
-                // directly through the gear stack - same formula the old CalculateWheelTorque used.
-                revolutionsPerMinute = Mathf.Clamp(gearboxRevolutions, idleRevolutions, maxRevolutions);
-                revLimiterFactor = Mathf.Clamp01((maxRevolutions - gearboxRevolutions) / revLimiterFadeRange);
-                float lockedTorque = GetMaxTorqueForRPM(revolutionsPerMinute) * throttle * revLimiterFactor;
-                return lockedTorque * CurrentGearRation * axleRatio * efficiency * DriveDirection;
-            }
-
-            // Held or Slipping: engine is free to move on its own inertia; the clutch only
-            // transfers whatever the plate's slip torque allows.
             revLimiterFactor = Mathf.Clamp01((maxRevolutions - revolutionsPerMinute) / revLimiterFadeRange);
-            float clutchReactionTorque = clutchState == ClutchState.Held
-                ? 0f
-                : DriveTrainMath.ClutchTorque(revolutionsPerMinute, gearboxRevolutions, clutchStiffness, maxClutchTorque);
 
-            // Internal friction always opposes rotation, throttle or not - this is what lets a
-            // held/slipping (declutched) engine actually settle back towards idle instead of
-            // holding whatever RPM it was last revved to.
-            float rpmFraction = revolutionsPerMinute / maxRevolutions;
-            float friction = engineFrictionTorque * rpmFraction * rpmFraction;
+            float engineNetTorque = combustionTorque * revLimiterFactor - friction;
+
+            float clutchReactionTorque = clutchHeld
+                ? 0f
+                : Mathf.Clamp(
+                    DriveTrainMath.LockedClutchTorque(
+                        revolutionsPerMinute * 2f * Mathf.PI / 60f,
+                        driveline.AngularVelocity,
+                        engineNetTorque,
+                        driveline.ExternalTorque,
+                        engineInertia,
+                        driveline.Inertia,
+                        totalRatio,
+                        efficiency,
+                        deltaTime),
+                    -maxClutchTorque,
+                    maxClutchTorque);
 
             debugCombustionTorque = combustionTorque * revLimiterFactor;
             debugFrictionTorque = friction;
             debugClutchReactionTorque = clutchReactionTorque;
 
-            // Idle governor: with the clutch fully disengaged there is no load pulling the engine
-            // down at all, so a real idle circuit holds it at idleRevolutions no matter how low
-            // throttle goes - it never just decays to a stop. While Slipping there IS a load (the
-            // driveline dragging through the clutch), so the floor stays at 0 there: that load is
-            // exactly what can pull RPM down into a stall, which is the point of the mechanic.
-            float rpmFloor = clutchState == ClutchState.Held ? idleRevolutions : 0f;
-
             revolutionsPerMinute = Mathf.Clamp(
-                DriveTrainMath.IntegrateEngineRpm(revolutionsPerMinute, combustionTorque * revLimiterFactor - friction, clutchReactionTorque, engineInertia, rpmChangeSpeed, deltaTime),
-                rpmFloor,
+                DriveTrainMath.IntegrateEngineRpm(revolutionsPerMinute, engineNetTorque, clutchReactionTorque, engineInertia, deltaTime),
+                0f,
                 maxRevolutions);
 
             if (DriveTrainMath.IsStalled(revolutionsPerMinute, stallRpm))
@@ -158,24 +185,7 @@ namespace CargoKing.Car
                 return 0f;
             }
 
-            return clutchReactionTorque * CurrentGearRation * axleRatio * efficiency * DriveDirection;
-        }
-
-        private void UpdateClutchState(bool clutchHeld)
-        {
-            if (clutchHeld)
-            {
-                clutchState = ClutchState.Held;
-                return;
-            }
-
-            // The step the pedal comes up counts as slipping even if the RPMs already happen to
-            // match - a real clutch does not snap to fully locked the instant it starts biting.
-            bool justReleased = clutchState == ClutchState.Held;
-            bool locked = !justReleased && shiftBlendTimer <= 0f
-                && DriveTrainMath.IsLocked(revolutionsPerMinute, gearboxRevolutions, lockEpsilonRpm);
-
-            clutchState = locked ? ClutchState.Locked : ClutchState.Slipping;
+            return clutchReactionTorque * totalRatio * efficiency;
         }
 
         private bool HandleStallAndRestart(bool restartRequested, float deltaTime)
@@ -200,17 +210,10 @@ namespace CargoKing.Car
                 engineStalled = false;
                 restartTimer = -1f;
                 revolutionsPerMinute = idleRevolutions;
-                clutchState = ClutchState.Locked;
                 return false;
             }
 
             return true;
-        }
-
-        /// <summary>Marks the driveline for a brief auto-clutch blend, e.g. right after a gear change.</summary>
-        public void BeginAutoClutchBlend()
-        {
-            shiftBlendTimer = gearShiftClutchBlendDuration;
         }
 
         private float GetMaxTorqueForRPM(float currentRPM)
@@ -218,7 +221,6 @@ namespace CargoKing.Car
             return LookUpOnTorqueCurve(torqueCurve, currentRPM);
         }
 
-        /// <summary>Returns true if the gear actually changed, so the caller knows to start an auto-clutch blend.</summary>
         public bool ChangeGear(GearShift direction, float currentSpeedMS)
         {
             int previousGear = currentGear;
