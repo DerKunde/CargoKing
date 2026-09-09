@@ -139,12 +139,20 @@ namespace CargoKing.Car
 
         public void Drive(in DrivingInput input)
         {
+            PlotDriverInput(input);
+
             ApplyGearShift(input.Shift);
             ApplyThrottle(input.Throttle, input.Clutch, input.RestartEngine);
             ApplySteering(input.Steer);
             ApplyBraking(input.Brake);
 
             carEngine.speedInKmH = Vector3.Dot(carBody.linearVelocity, transform.forward) * 3.6f;
+
+            // Speed and gear alongside the drivetrain values: without them a telemetry log cannot
+            // be read back at all, because there is no way to find which stretch of it was the
+            // manoeuvre in question.
+            DebugGraph.Plot("Vehicle", "Speed kmh", carEngine.speedInKmH, -50f, 200f);
+            DebugGraph.Plot("Vehicle", "Gear", carEngine.currentGear, 0f, 5f);
         }
 
         private void ApplyThrottle(float throttle, bool clutchHeld, bool restartEngine)
@@ -195,6 +203,26 @@ namespace CargoKing.Car
                 // separate blend step needed here any more.
                 carEngine.ChangeGear(shift, CarSpeedInMS());
             }
+        }
+
+        /// <summary>
+        /// Every driver command in one place, so a telemetry log always shows what was actually
+        /// asked for next to what the car did with it. Taken straight from the input struct rather
+        /// than from the individual Apply methods: those transform their value on the way through,
+        /// and reading back a transformed input while chasing a bug is how you end up debugging
+        /// the wrong end of the chain.
+        ///
+        /// Clutch in particular is not optional here - "Clutch Gap RPM" is only meaningful while
+        /// the clutch is engaged, because a held clutch is supposed to let the two sides drift
+        /// apart.
+        /// </summary>
+        private void PlotDriverInput(in DrivingInput input)
+        {
+            DebugGraph.Plot("Input", "Steer", input.Steer, -1f, 1f);
+            DebugGraph.Plot("Input", "Throttle", input.Throttle, 0f, 1f);
+            DebugGraph.Plot("Input", "Brake", input.Brake, 0f, 1f);
+            DebugGraph.Plot("Input", "Clutch", input.Clutch ? 1f : 0f, 0f, 1f);
+            DebugGraph.Plot("Input", "Handbrake", input.Handbrake ? 1f : 0f, 0f, 1f);
         }
 
         private void ApplySteering(float steer)
