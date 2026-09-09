@@ -44,6 +44,13 @@ namespace CargoKing.Car
         public float rollStopLimit;
         public bool rollForceAtStopLimit;
 
+        /// <summary>
+        /// How much of what the contact patch was asked for it could actually deliver: 1 means the
+        /// tire had grip to spare, lower means cornering, braking and drive together went over the
+        /// friction circle and all three were cut back by this factor.
+        /// </summary>
+        public float gripScale = 1f;
+
         public bool isGrounded;
 
         [Header("Wheel Rotation")]
@@ -82,6 +89,20 @@ namespace CargoKing.Car
 
         private float driveReactionTorque;
         private float resistiveReactionTorque;
+
+        /// <summary>
+        /// This wheel's rotational inertia, kg*m^2. Read by <see cref="CarController"/> so the
+        /// engine can treat the driven wheels as part of one rotating mass while the clutch is
+        /// closed - see <see cref="DriveTrainMath.LockedClutchTorque"/>.
+        /// </summary>
+        public float WheelInertia => wheelInertia;
+
+        /// <summary>
+        /// Everything except the driveline acting on this wheel's spin this step, N*m, signed the
+        /// same way as <see cref="wheelAngularVelocity"/>: the ground's reaction to the drive
+        /// force, plus brakes and rolling resistance. Zero while airborne.
+        /// </summary>
+        public float ExternalTorque => -(driveReactionTorque + resistiveReactionTorque);
 
         /// <summary>
         /// How far the strut is extended: 0 fully compressed, 1 at rest length or in the air. The
@@ -286,6 +307,7 @@ namespace CargoKing.Car
             // wheels off the road in nearly every bend.
             float combined = Mathf.Sqrt(lateralDemand * lateralDemand + longitudinalDemand * longitudinalDemand);
             float scale = combined > gripLimit && combined > 0f ? gripLimit / combined : 1f;
+            gripScale = scale;
 
             tireSlip = lateralAxis * (lateralDemand * scale);
             tireLongitudinalForce = rollDirection * (longitudinalDemand * scale);
