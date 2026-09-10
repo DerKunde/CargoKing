@@ -1,10 +1,17 @@
-name: Auto Tag on PR Merge
+name: Create Version Tag
 
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - main
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: 'Version bump'
+        required: true
+        default: patch
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -15,7 +22,7 @@ permissions:
 jobs:
   tag:
     name: Create Version Tag
-    if: github.event.pull_request.merged == true
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -23,24 +30,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine bump type from PR title
-        id: bump
-        run: |
-          TITLE="${{ github.event.pull_request.title }}"
-          echo "PR title: $TITLE"
-
-          if echo "$TITLE" | grep -qiE '^(feat!|break(ing)?):'; then
-            echo "type=major" >> $GITHUB_OUTPUT
-          elif echo "$TITLE" | grep -qiE '^feat(\(.+\))?!:'; then
-            echo "type=major" >> $GITHUB_OUTPUT
-          elif echo "$TITLE" | grep -qiE '^feat(\(.+\))?:'; then
-            echo "type=minor" >> $GITHUB_OUTPUT
-          else
-            echo "type=patch" >> $GITHUB_OUTPUT
-          fi
-
       - name: Compute next version
         id: version
+        env:
+          BUMP: ${{ inputs.bump }}
         run: |
           LATEST=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
           if [ -z "$LATEST" ]; then
@@ -48,11 +41,15 @@ jobs:
           fi
           echo "Latest tag: $LATEST"
 
+          if git tag --points-at HEAD | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::$(git rev-parse --short HEAD) is already tagged as $(git tag --points-at HEAD | head -1)."
+            exit 1
+          fi
+
           MAJOR=$(echo "$LATEST" | sed 's/v\([0-9]*\)\..*/\1/')
           MINOR=$(echo "$LATEST" | sed 's/v[0-9]*\.\([0-9]*\)\..*/\1/')
           PATCH=$(echo "$LATEST" | sed 's/v[0-9]*\.[0-9]*\.\([0-9]*\)/\1/')
 
-          BUMP="${{ steps.bump.outputs.type }}"
           if [ "$BUMP" = "major" ]; then
             NEW_VERSION="v$((MAJOR + 1)).0.0"
           elif [ "$BUMP" = "minor" ]; then
