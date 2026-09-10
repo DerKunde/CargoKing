@@ -8,6 +8,7 @@ on:
       - 'Packages/**'
       - 'ProjectSettings/**'
       - '.github/workflows/unity-ci.yml'
+      - '.github/scripts/**'
   pull_request:
     branches: [ main ]
     types: [opened, synchronize, reopened, labeled, unlabeled]
@@ -16,6 +17,7 @@ on:
       - 'Packages/**'
       - 'ProjectSettings/**'
       - '.github/workflows/unity-ci.yml'
+      - '.github/scripts/**'
   workflow_dispatch:
     inputs:
       run_tests:
@@ -99,15 +101,17 @@ jobs:
 
       - name: Run tests
         id: unity_tests
-        uses: game-ci/unity-test-runner@v4
+        # Pinned: @v4 moved to the v4.4.0 rewrite, which rejects UNITY_LICENSE, takes a Personal
+        # seat through the account instead and then fails to return it.
+        uses: game-ci/unity-test-runner@v4.3.2
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
         with:
-          testMode: editmode
+          testMode: all
           artifactsPath: test-results
-          checkName: editmode Test Results
+          checkName: Test Results
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           customImage: unityci/editor:ubuntu-6000.3.8f1-windows-mono-3.2.1
 
@@ -119,23 +123,68 @@ jobs:
           path: test-results
           retention-days: 14
 
-      - name: Verify test results
-        run: |
-          if [ ! -f "test-results/editmode-results.xml" ]; then
-            echo "❌ Test results file not found"
-            exit 1
-          fi
+  report:
+    name: Test Report
+    runs-on: ubuntu-latest
+    needs: test
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'failure')
+    steps:
+      - name: Checkout scripts
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: .github/scripts
+          persist-credentials: false
 
-          if grep -q 'result="Passed"' test-results/editmode-results.xml && \
-             grep -q 'failed="0"' test-results/editmode-results.xml; then
-            TOTAL=$(grep -oP 'total="\K[0-9]+' test-results/editmode-results.xml | head -1)
-            PASSED=$(grep -oP 'passed="\K[0-9]+' test-results/editmode-results.xml | head -1)
-            echo "✅ All tests passed: $PASSED/$TOTAL"
-            exit 0
-          else
-            echo "❌ Some tests failed"
-            exit 1
-          fi
+      # A missing artifact is not fatal here: the script then reports "no results" and fails.
+      - name: Download test results
+        uses: actions/download-artifact@v8
+        continue-on-error: true
+        with:
+          name: Test-Results
+          path: test-results
+
+      - name: Summarize test results
+        shell: pwsh
+        run: ./.github/scripts/Summarize-TestResults.ps1 -ResultsDir test-results -BadgesDir badges
+
+      - name: Upload badges
+        uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: Badges
+          path: badges
+          retention-days: 1
+
+  # The only job with write access. It keeps the badge JSONs as a single commit on the
+  # orphan branch "badges", which the README badges read through shields.io.
+  publish-badges:
+    name: Publish Badges
+    runs-on: ubuntu-latest
+    needs: report
+    if: |
+      always() &&
+      github.event_name != 'pull_request' && github.ref == 'refs/heads/main' &&
+      (needs.report.result == 'success' || needs.report.result == 'failure')
+    permissions:
+      contents: write
+    steps:
+      - name: Download badges
+        uses: actions/download-artifact@v8
+        with:
+          name: Badges
+          path: badges
+
+      - name: Push badges branch
+        working-directory: badges
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git init -q -b badges
+          git add *.json
+          git -c user.name='github-actions[bot]' \
+              -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -q -m "Test badges for ${GITHUB_SHA::7}"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:badges
 
   build:
     name: Build for Windows

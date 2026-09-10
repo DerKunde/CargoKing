@@ -5,7 +5,9 @@
 ![Unity](https://img.shields.io/badge/Unity-6000.3.8f1-000?logo=unity)
 ![Pipeline](https://img.shields.io/badge/render-URP%2017.3-blue)
 ![Language](https://img.shields.io/badge/C%23-.NET%20Standard%202.1-512BD4)
-![Tests](https://img.shields.io/badge/EditMode%20tests-28-success)
+[![EditMode tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FDerKunde%2FCargoKing%2Fbadges%2Feditmode.json)](https://github.com/DerKunde/CargoKing/actions/workflows/unity-ci.yml?query=branch%3Amain)
+[![PlayMode tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FDerKunde%2FCargoKing%2Fbadges%2Fplaymode.json)](https://github.com/DerKunde/CargoKing/actions/workflows/unity-ci.yml?query=branch%3Amain)
+[![CI tests](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FDerKunde%2FCargoKing%2Fbadges%2Fci.json)](https://github.com/DerKunde/CargoKing/actions/workflows/unity-ci.yml?query=branch%3Amain)
 
 This is a technical prototype, not a finished game. It exists to build three systems properly
 rather than to ship content: a car driven by forces I compute myself instead of by `WheelCollider`, an in-editor tool that authors roads which double as the path network for AI traffic and a competitive racing AI.
