@@ -202,5 +202,38 @@ namespace CargoKing.Car
 
             return demand / coupledInverseInertia;
         }
+
+        /// <summary>
+        /// The driven axle as the engine sees it through an open differential: the carrier turns
+        /// at the mean of the two wheel speeds, and carries both wheels' inertia and everything
+        /// the road does to them. For equal wheel inertias this is exact, not an approximation -
+        /// with the torque split evenly (see <see cref="OpenDifferentialWheelTorque"/>) the mean
+        /// wheel acceleration is (T + M_left + M_right) / (J_left + J_right).
+        ///
+        /// Kept as its own named step so a limited-slip or locked differential can replace it
+        /// later without touching the tire model or the clutch.
+        /// </summary>
+        public static DrivelineLoad OpenDifferentialLoad(
+            float leftAngularVelocity,
+            float rightAngularVelocity,
+            float leftInertia,
+            float rightInertia,
+            float leftExternalTorque,
+            float rightExternalTorque)
+        {
+            return new DrivelineLoad(
+                (leftAngularVelocity + rightAngularVelocity) * 0.5f,
+                leftInertia + rightInertia,
+                leftExternalTorque + rightExternalTorque);
+        }
+
+        /// <summary>
+        /// Each wheel's share of the carrier torque. An open differential splits evenly whatever
+        /// the grip, so a wheel spinning on nothing caps what the other one can put down.
+        /// </summary>
+        public static float OpenDifferentialWheelTorque(float carrierTorque)
+        {
+            return carrierTorque * 0.5f;
+        }
     }
 }
