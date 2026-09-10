@@ -1042,6 +1042,8 @@ MonoBehaviour:
   throttle: 0
   brake: 0
   handbrake: 0
+  clutch: 0
+  restartEngine: 0
 --- !u!4 &1206546114
 Transform:
   m_ObjectHideFlags: 0
@@ -1717,6 +1719,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 155778385203078747, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
+      propertyPath: tireProfile
+      value: 
+      objectReference: {fileID: 11400000, guid: 480de05c75f38134da24b9da524d30e8, type: 2}
+    - target: {fileID: 1719965589584266589, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
+      propertyPath: m_CenterOfMass.y
+      value: 0.1
+      objectReference: {fileID: 0}
     - target: {fileID: 2117203630190365347, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
       propertyPath: m_LocalPosition.x
       value: -2
@@ -1757,10 +1767,30 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4838764956128348499, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
+      propertyPath: engineFrictionTorque
+      value: 80
+      objectReference: {fileID: 0}
     - target: {fileID: 6306959686309749885, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
       propertyPath: m_Name
       value: Car_v2
       objectReference: {fileID: 0}
+    - target: {fileID: 6550818870107621857, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
+      propertyPath: centerOfMass.y
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8313189406223860620, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
+      propertyPath: tireProfile
+      value: 
+      objectReference: {fileID: 11400000, guid: 480de05c75f38134da24b9da524d30e8, type: 2}
+    - target: {fileID: 8537331613892884261, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
+      propertyPath: tireProfile
+      value: 
+      objectReference: {fileID: 11400000, guid: 480de05c75f38134da24b9da524d30e8, type: 2}
+    - target: {fileID: 8733962457503289465, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
+      propertyPath: tireProfile
+      value: 
+      objectReference: {fileID: 11400000, guid: 480de05c75f38134da24b9da524d30e8, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
