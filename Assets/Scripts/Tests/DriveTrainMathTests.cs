@@ -80,7 +80,12 @@ namespace CargoKing.Tests
             // integration, however large the net torque is.
             float newRpm = DriveTrainMath.IntegrateEngineRpm(currentRpm: 1000f, engineNetTorque: 10000f, clutchReactionTorque: 0f, engineInertia: 0.15f, deltaTime: 1f);
             float expectedRpm = 1000f + 10000f / 0.15f * 60f / (2f * Mathf.PI);
-            Assert.AreEqual(expectedRpm, newRpm, 0.01f);
+
+            // Relative tolerance: at ~637,000 rpm a float cannot resolve anything finer than
+            // 0.0625, and the compiler folds the expected value in float while Unity's Mono keeps
+            // the runtime intermediates in double - the two land one float step apart. A rate cap
+            // would miss by thousands of rpm, so this still catches what the test is about.
+            Assert.AreEqual(expectedRpm, newRpm, expectedRpm * 1e-6f);
         }
 
         [Test]
@@ -393,6 +398,29 @@ namespace CargoKing.Tests
             SimulateStandingStart(out _, out _, out float finalSpeed);
 
             Assert.Greater(finalSpeed, 3f);
+        }
+
+        // --- Open differential ----------------------------------------------------------------
+
+        [Test]
+        public void OpenDifferentialLoad_AveragesSpeedsAndSumsInertiaAndTorque()
+        {
+            DrivelineLoad load = DriveTrainMath.OpenDifferentialLoad(
+                leftAngularVelocity: 10f, rightAngularVelocity: 14f,
+                leftInertia: 1.2f, rightInertia: 1.2f,
+                leftExternalTorque: -100f, rightExternalTorque: -300f);
+
+            Assert.AreEqual(12f, load.AngularVelocity, 1e-5f);
+            Assert.AreEqual(2.4f, load.Inertia, 1e-5f);
+            Assert.AreEqual(-400f, load.ExternalTorque, 1e-4f);
+        }
+
+        [Test]
+        public void OpenDifferentialWheelTorque_OneWheelWithoutGrip_StillGetsHalf()
+        {
+            // The defining trait of an open differential: torque is split evenly regardless of
+            // grip, so a wheel spinning on nothing caps what the other one can put down.
+            Assert.AreEqual(50f, DriveTrainMath.OpenDifferentialWheelTorque(100f), 1e-5f);
         }
     }
 }
