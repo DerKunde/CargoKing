@@ -4,6 +4,11 @@ using UnityEngine;
 
 namespace CargoKing.Car
 {
+    /// <summary>
+    /// Owns the car's physics step. Runs after the drivers (PlayerDriver, AIDriver call
+    /// <see cref="Drive"/> from their own FixedUpdate), so each step works with this step's input.
+    /// </summary>
+    [DefaultExecutionOrder(100)]
     public class CarController : MonoBehaviour
     {
         public Rigidbody carBody;
@@ -45,11 +50,28 @@ namespace CargoKing.Car
 
         public float rearAntiRollStiffness = 1200f;
 
+        /// <summary>
+        /// How many times per physics step engine, clutch and wheel spin are advanced. The tire's
+        /// longitudinal force is stiff against the wheel's small inertia; one 50 Hz step would
+        /// either oscillate or need a cap so strong the Pacejka curve never showed. 20 matched a
+        /// 400-sub-step reference to 0.01% of stopping distance in the quarter-car sweep, and is
+        /// where the wheel-side cap stops mattering; 10 was still within 0.5%.
+        /// </summary>
+        [Header("Drivetrain")]
+        [Min(1)]
+        public int drivetrainSubSteps = 20;
+
         private Suspension[] brakedWheels;
+        private Suspension[] wheels;
         private Suspension frontLeftSuspension;
         private Suspension frontRightSuspension;
         private Suspension rearLeftSuspension;
         private Suspension rearRightSuspension;
+
+        // Stored by Drive(), consumed by the next physics step.
+        private float throttleInput;
+        private bool clutchInput;
+        private bool restartEngineInput;
 
         private void Awake()
         {
@@ -67,6 +89,14 @@ namespace CargoKing.Car
                 rearRightSuspension,
             };
 
+            wheels = new[]
+            {
+                frontLeftSuspension,
+                frontRightSuspension,
+                rearLeftSuspension,
+                rearRightSuspension,
+            };
+
             ApplyCenterOfMass();
         }
 
@@ -75,12 +105,68 @@ namespace CargoKing.Car
             ApplyCenterOfMass();
         }
 
+        /// <summary>
+        /// The whole physics step, in an order that used to be left to Unity: contact first, so
+        /// the anti roll bars and the tires see this step's suspension; then the drivetrain in
+        /// sub-steps with the body's velocity frozen; then each tire's averaged force onto the body.
+        /// </summary>
         private void FixedUpdate()
         {
+            float deltaTime = Time.fixedDeltaTime;
+
+            foreach (Suspension wheel in wheels)
+            {
+                wheel.UpdateContact(deltaTime);
+            }
+
             // Separate from Drive(): the bars work off suspension travel, not off driver input, and have
             // to keep working while nobody is steering.
             ApplyAntiRoll(frontLeftSuspension, frontRightSuspension, frontAntiRollStiffness);
             ApplyAntiRoll(rearLeftSuspension, rearRightSuspension, rearAntiRollStiffness);
+
+            StepDrivetrain(deltaTime);
+
+            foreach (Suspension wheel in wheels)
+            {
+                wheel.ApplyTireForce();
+            }
+
+            PlotDrivetrain();
+        }
+
+        /// <summary>
+        /// Engine, clutch, open differential and all four wheels, advanced together in
+        /// <see cref="drivetrainSubSteps"/> sub-steps. Each sub-step evaluates the tires first, so
+        /// the clutch holds engine and driven wheels together against the road's reaction from the
+        /// same sub-step - the one-step lag this coupling used to carry is gone.
+        /// </summary>
+        private void StepDrivetrain(float deltaTime)
+        {
+            int subSteps = Mathf.Max(1, drivetrainSubSteps);
+            float subStepDeltaTime = deltaTime / subSteps;
+
+            for (int i = 0; i < subSteps; i++)
+            {
+                foreach (Suspension wheel in wheels)
+                {
+                    wheel.EvaluateTire(subStepDeltaTime);
+                }
+
+                DrivelineLoad driveline = DriveTrainMath.OpenDifferentialLoad(
+                    rearLeftSuspension.wheelAngularVelocity, rearRightSuspension.wheelAngularVelocity,
+                    rearLeftSuspension.WheelInertia, rearRightSuspension.WheelInertia,
+                    rearLeftSuspension.ExternalTorque, rearRightSuspension.ExternalTorque);
+
+                float carrierTorque = carEngine.Tick(throttleInput, driveline, clutchInput, restartEngineInput, subStepDeltaTime);
+                float wheelTorque = DriveTrainMath.OpenDifferentialWheelTorque(carrierTorque);
+                rearLeftSuspension.driveTorque = wheelTorque;
+                rearRightSuspension.driveTorque = wheelTorque;
+
+                foreach (Suspension wheel in wheels)
+                {
+                    wheel.IntegrateWheel(subStepDeltaTime);
+                }
+            }
         }
 
         private void ApplyCenterOfMass()
@@ -137,12 +223,19 @@ namespace CargoKing.Car
             Gizmos.DrawWireSphere(transform.TransformPoint(centerOfMass), 0.08f);
         }
 
+        /// <summary>
+        /// Takes this step's driver commands. Steering, gear and brake go to their targets right
+        /// away; throttle, clutch and restart are stored for <see cref="StepDrivetrain"/>, which
+        /// runs in this component's FixedUpdate after the drivers.
+        /// </summary>
         public void Drive(in DrivingInput input)
         {
             PlotDriverInput(input);
 
             ApplyGearShift(input.Shift);
-            ApplyThrottle(input.Throttle, input.Clutch, input.RestartEngine);
+            throttleInput = input.Throttle;
+            clutchInput = input.Clutch;
+            restartEngineInput = input.RestartEngine;
             ApplySteering(input.Steer);
             ApplyBraking(input.Brake);
 
@@ -155,9 +248,9 @@ namespace CargoKing.Car
             DebugGraph.Plot("Vehicle", "Gear", carEngine.currentGear, 0f, 5f);
         }
 
-        private void ApplyThrottle(float throttle, bool clutchHeld, bool restartEngine)
+        private void PlotDrivetrain()
         {
-            DebugGraph.Plot("Throttle", throttle, 0f, 1f);
+            DebugGraph.Plot("Throttle", throttleInput, 0f, 1f);
             DebugGraph.Plot("Drivetrain", "Engine RPM", carEngine.revolutionsPerMinute, 0f, carEngine.maxRevolutions);
             DebugGraph.Plot("Drivetrain", "Clutch Reaction Torque", carEngine.debugClutchReactionTorque, -230f, 230f);
             DebugGraph.Plot("Drivetrain", "Combustion Torque", carEngine.debugCombustionTorque, -50f, 300f);
@@ -171,26 +264,20 @@ namespace CargoKing.Car
             // themselves are slowing and the engine is faithfully following them".
             DebugGraph.Plot("Drivetrain", "Clutch Gap RPM", carEngine.revolutionsPerMinute - carEngine.gearboxRevolutions, -2000f, 2000f);
 
-            // How much of the tires' grip is left for driving once cornering has taken its share.
-            DebugGraph.Plot("Grip", "Rear L Grip Scale", rearLeftSuspension.gripScale, 0f, 1f);
-            DebugGraph.Plot("Grip", "Rear R Grip Scale", rearRightSuspension.gripScale, 0f, 1f);
+            // Per wheel, what the tire is doing and how close to its limit: grip usage 1 means the
+            // contact patch is at the edge of its friction ellipse, whatever mix of cornering,
+            // braking and drive put it there.
+            PlotTire("FL", frontLeftSuspension);
+            PlotTire("FR", frontRightSuspension);
+            PlotTire("RL", rearLeftSuspension);
+            PlotTire("RR", rearRightSuspension);
+        }
 
-            // The driven wheels as the engine sees them: one rotating mass, plus whatever the road
-            // is doing to it. The engine needs the load as well as the speed because a closed
-            // clutch has to hold the two together against it - see DriveTrainMath.LockedClutchTorque.
-            //
-            // 1-step lag against Suspension's own FixedUpdate is expected and harmless here:
-            // whichever of the two runs first each frame, the pairing is consistent step to step,
-            // not different frame to frame, so it settles like any other semi-implicit coupling.
-            DrivelineLoad driveline = new DrivelineLoad(
-                (rearLeftSuspension.wheelAngularVelocity + rearRightSuspension.wheelAngularVelocity) * 0.5f,
-                rearLeftSuspension.WheelInertia + rearRightSuspension.WheelInertia,
-                rearLeftSuspension.ExternalTorque + rearRightSuspension.ExternalTorque);
-
-            float driveTorque = carEngine.Tick(throttle, driveline, clutchHeld, restartEngine, Time.fixedDeltaTime);
-
-            rearLeftSuspension.driveTorque = driveTorque * 0.5f;
-            rearRightSuspension.driveTorque = driveTorque * 0.5f;
+        private static void PlotTire(string label, Suspension wheel)
+        {
+            DebugGraph.Plot("Tire", $"{label} Slip Ratio", wheel.slipRatio, -1f, 1f);
+            DebugGraph.Plot("Tire", $"{label} Slip Angle", wheel.slipAngle, -20f, 20f);
+            DebugGraph.Plot("Tire", $"{label} Grip Usage", wheel.gripUsage, 0f, 1.2f);
         }
 
         private void ApplyGearShift(GearShift shift)
@@ -235,8 +322,8 @@ namespace CargoKing.Car
         private void ApplyBraking(float brake)
         {
             // Handed over every step, not only while the pedal is down - letting go has to reach
-            // the wheels too. Suspension builds the force, where normal force and contact point
-            // are known.
+            // the wheels too. Suspension turns it into a torque on the wheel, where radius and
+            // spin are known.
             foreach (Suspension wheel in brakedWheels)
             {
                 wheel.SetBrakeInput(brake);
