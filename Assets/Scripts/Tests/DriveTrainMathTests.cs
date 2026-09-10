@@ -422,5 +422,82 @@ namespace CargoKing.Tests
             // grip, so a wheel spinning on nothing caps what the other one can put down.
             Assert.AreEqual(50f, DriveTrainMath.OpenDifferentialWheelTorque(100f), 1e-5f);
         }
+
+        // --- Launch assist ----------------------------------------------------------------------
+
+        private const float EngageRpm = 1100f;
+        private const float FullRpm = 2200f;
+        private const float ClutchCapacity = 220f;
+
+        [TestCase(600f)]
+        [TestCase(1000f)]
+        [TestCase(1100f)]
+        public void LaunchClutchCapacity_AtOrBelowTheBitePoint_IsZero(float rpm)
+        {
+            // Nothing at idle: letting go of the clutch key cannot drag the engine down and stall it.
+            Assert.AreEqual(0f, DriveTrainMath.LaunchClutchCapacity(rpm, EngageRpm, FullRpm, ClutchCapacity), 1e-6f);
+        }
+
+        [TestCase(2200f)]
+        [TestCase(4000f)]
+        public void LaunchClutchCapacity_FromTheFullRpmUp_IsTheWholePlate(float rpm)
+        {
+            Assert.AreEqual(ClutchCapacity, DriveTrainMath.LaunchClutchCapacity(rpm, EngageRpm, FullRpm, ClutchCapacity), 1e-4f);
+        }
+
+        [Test]
+        public void LaunchClutchCapacity_Halfway_BitesGentlyAtFirst()
+        {
+            // Quadratic, so the first few hundred rpm above the bite point pass on little torque -
+            // the soft take-up of a clutch pedal let out slowly.
+            float halfway = DriveTrainMath.LaunchClutchCapacity(0.5f * (EngageRpm + FullRpm), EngageRpm, FullRpm, ClutchCapacity);
+            Assert.AreEqual(0.25f * ClutchCapacity, halfway, 1e-3f);
+        }
+
+        [Test]
+        public void LaunchClutchCapacity_RisesWithRpm()
+        {
+            float previous = -1f;
+            for (float rpm = EngageRpm + 50f; rpm <= FullRpm; rpm += 50f)
+            {
+                float capacity = DriveTrainMath.LaunchClutchCapacity(rpm, EngageRpm, FullRpm, ClutchCapacity);
+                Assert.Greater(capacity, previous, $"capacity must keep rising, broke at {rpm} rpm");
+                previous = capacity;
+            }
+        }
+
+        [Test]
+        public void LaunchAssistActive_StaysOnWhileTheClutchSlips()
+        {
+            Assert.IsTrue(DriveTrainMath.LaunchAssistActive(wasActive: true, clutchHeld: false, standing: false, clutchSlipping: true));
+        }
+
+        [Test]
+        public void LaunchAssistActive_SwitchesOffOnceTheClutchHolds()
+        {
+            // The launch is over the moment engine and wheels turn together - from here on the
+            // plate holds with its full capacity, and stalling is possible again.
+            Assert.IsFalse(DriveTrainMath.LaunchAssistActive(wasActive: true, clutchHeld: false, standing: false, clutchSlipping: false));
+        }
+
+        [Test]
+        public void LaunchAssistActive_WhileDriving_StaysOffEvenIfTheClutchSlips()
+        {
+            // A gear shift makes the full-capacity clutch slip for a moment. That is not a launch
+            // and must not bring the soft take-up back.
+            Assert.IsFalse(DriveTrainMath.LaunchAssistActive(wasActive: false, clutchHeld: false, standing: false, clutchSlipping: true));
+        }
+
+        [Test]
+        public void LaunchAssistActive_RearmsAtStandstill()
+        {
+            Assert.IsTrue(DriveTrainMath.LaunchAssistActive(wasActive: false, clutchHeld: false, standing: true, clutchSlipping: false));
+        }
+
+        [Test]
+        public void LaunchAssistActive_RearmsWhenTheClutchIsHeld()
+        {
+            Assert.IsTrue(DriveTrainMath.LaunchAssistActive(wasActive: false, clutchHeld: true, standing: false, clutchSlipping: false));
+        }
     }
 }

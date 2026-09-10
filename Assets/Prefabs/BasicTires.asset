@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: BasicTires
   m_EditorClassIdentifier: Assembly-CSharp::CargoKing.Car.TireProfile
   longitudinal:
-    b: 14
+    b: 28.9
     c: 1.65
     d: 0.9
-    e: -1.8
+    e: 0.9
   lateral:
     b: 0.376
     c: 1.64
-    d: 0.61
-    e: -4.79
+    d: 0.9
+    e: 0
   nominalLoad: 1962
   loadSensitivity: 0.1

@@ -70,6 +70,18 @@ namespace CargoKing.Car
 
         public float maxClutchTorque = 220f;
 
+        /// <summary>
+        /// Launch assist: while the car stands or the clutch key is held, the clutch takes up
+        /// with engine speed instead of snapping shut - nothing at this rpm, the whole plate at
+        /// <see cref="launchFullRpm"/> (see DriveTrainMath.LaunchClutchCapacity). Just above idle,
+        /// so letting go of the key at idle cannot stall the engine.
+        /// </summary>
+        [Tooltip("Launch assist: engine rpm at which the clutch starts to bite. Just above idle, so letting go at idle cannot stall.")]
+        public float launchEngageRpm = 1100f;
+
+        [Tooltip("Launch assist: engine rpm from which the clutch passes on its full capacity.")]
+        public float launchFullRpm = 2200f;
+
         // Unused since the clutch became a solved constraint (see Tick): whether it is locked is
         // answered by whether the constraint torque fits inside maxClutchTorque, so there is no
         // state left to detect with an epsilon check. Left in place rather than deleted.
@@ -99,6 +111,15 @@ namespace CargoKing.Car
         public float debugFrictionTorque;
         public float debugClutchReactionTorque;
 
+        /// <summary>True while the launch assist sets the clutch capacity - from standstill until the clutch first holds.</summary>
+        public bool launchAssistActive = true;
+
+        /// <summary>What the clutch could pass on this step, N*m - 0 with the key held, the take-up during a launch, maxClutchTorque otherwise.</summary>
+        public float debugClutchCapacity;
+
+        // Below this the car counts as standing and the launch assist takes over again.
+        private const float LaunchStandstillKmh = 1f;
+
         private float restartTimer = -1f;
 
         private int rpmDivisor = 10000;
@@ -123,6 +144,11 @@ namespace CargoKing.Car
         /// hold, and it slips until the two are back together on its own.
         ///
         /// Held (pedal down) zeroes it and the engine is free to rev on its own inertia.
+        ///
+        /// Launch assist: from standstill, or with the key held, the capacity follows engine speed
+        /// (DriveTrainMath.LaunchClutchCapacity) until the clutch first holds - the take-up a
+        /// driver would do with the pedal. After that it is the full plate again, and the engine
+        /// can be stalled like in any manual.
         /// </summary>
         public float Tick(float throttle, in DrivelineLoad driveline, bool clutchHeld, bool restartRequested, float deltaTime)
         {
@@ -131,6 +157,9 @@ namespace CargoKing.Car
             if (HandleStallAndRestart(restartRequested, deltaTime))
             {
                 revolutionsPerMinute = 0f;
+                debugClutchCapacity = 0f;
+                // A restart is a new launch, even if the car is still rolling.
+                launchAssistActive = true;
                 return 0f;
             }
 
@@ -153,25 +182,37 @@ namespace CargoKing.Car
 
             float engineNetTorque = combustionTorque * revLimiterFactor - friction;
 
-            float clutchReactionTorque = clutchHeld
+            float lockedClutchTorque = DriveTrainMath.LockedClutchTorque(
+                revolutionsPerMinute * 2f * Mathf.PI / 60f,
+                driveline.AngularVelocity,
+                engineNetTorque,
+                driveline.ExternalTorque,
+                engineInertia,
+                driveline.Inertia,
+                totalRatio,
+                efficiency,
+                deltaTime);
+
+            float clutchCapacity = clutchHeld
                 ? 0f
-                : Mathf.Clamp(
-                    DriveTrainMath.LockedClutchTorque(
-                        revolutionsPerMinute * 2f * Mathf.PI / 60f,
-                        driveline.AngularVelocity,
-                        engineNetTorque,
-                        driveline.ExternalTorque,
-                        engineInertia,
-                        driveline.Inertia,
-                        totalRatio,
-                        efficiency,
-                        deltaTime),
-                    -maxClutchTorque,
-                    maxClutchTorque);
+                : launchAssistActive
+                    ? DriveTrainMath.LaunchClutchCapacity(revolutionsPerMinute, launchEngageRpm, launchFullRpm, maxClutchTorque)
+                    : maxClutchTorque;
+
+            float clutchReactionTorque = Mathf.Clamp(lockedClutchTorque, -clutchCapacity, clutchCapacity);
+
+            // Slipping is exactly "the constraint asked for more than the plate could give" - the
+            // same test that decides whether the clutch is locked at all.
+            launchAssistActive = DriveTrainMath.LaunchAssistActive(
+                launchAssistActive,
+                clutchHeld,
+                standing: Mathf.Abs(speedInKmH) < LaunchStandstillKmh,
+                clutchSlipping: Mathf.Abs(lockedClutchTorque) > clutchCapacity);
 
             debugCombustionTorque = combustionTorque * revLimiterFactor;
             debugFrictionTorque = friction;
             debugClutchReactionTorque = clutchReactionTorque;
+            debugClutchCapacity = clutchCapacity;
 
             revolutionsPerMinute = Mathf.Clamp(
                 DriveTrainMath.IntegrateEngineRpm(revolutionsPerMinute, engineNetTorque, clutchReactionTorque, engineInertia, deltaTime),

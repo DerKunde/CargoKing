@@ -24,7 +24,10 @@ namespace CargoKing.Car
         private const float MinPeakSlipAngle = 0.01f;
 
         [Header("Longitudinal (x = slip ratio, 0.1 = 10%)")]
-        public PacejkaCurve longitudinal = new PacejkaCurve(14f, 1.65f, 0.9f, 0f);
+        // Peak at 10% slip with a broad top: 95% of it left at 30% slip, 80% with the wheel
+        // spinning or locked - close to real dry-asphalt tires. An earlier E = 0 start value kept
+        // only 62% there, so a spinning wheel barely held the engine back and launches flared.
+        public PacejkaCurve longitudinal = new PacejkaCurve(28.95f, 1.65f, 0.9f, 0.9f);
 
         [Header("Lateral (x = slip angle in degrees)")]
         public PacejkaCurve lateral = new PacejkaCurve(0.376f, 1.3f, 0.9f, 0f);
