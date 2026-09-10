@@ -48,10 +48,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Suspension
   carBody: {fileID: 1719965589584266589}
+  tireProfile: {fileID: 11400000, guid: 480de05c75f38134da24b9da524d30e8, type: 2}
   springStrength: 6000
   damping: 1500
   tireGripFactor: 0.4
-  powerScale: 10
   maxBrakeForce: 2200
   brakeFrictionCoefficient: 0.9
   brakeInput: 0
@@ -73,7 +73,15 @@ MonoBehaviour:
   rollResistanceLimit: 0
   rollStopLimit: 0
   rollForceAtStopLimit: 0
+  slipRatio: 0
+  slipAngle: 0
+  gripUsage: 0
+  gripScale: 1
   isGrounded: 0
+  wheelAssemblyMass: 20
+  driveSlipStiffness: 250
+  wheelAngularVelocity: 0
+  driveTorque: 0
 --- !u!114 &7512619485566452679
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -161,10 +169,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Suspension
   carBody: {fileID: 1719965589584266589}
+  tireProfile: {fileID: 11400000, guid: 480de05c75f38134da24b9da524d30e8, type: 2}
   springStrength: 6000
   damping: 1500
   tireGripFactor: 0.4
-  powerScale: 10
   maxBrakeForce: 2200
   brakeFrictionCoefficient: 0.9
   brakeInput: 0
@@ -186,7 +194,15 @@ MonoBehaviour:
   rollResistanceLimit: 0
   rollStopLimit: 0
   rollForceAtStopLimit: 0
+  slipRatio: 0
+  slipAngle: 0
+  gripUsage: 0
+  gripScale: 1
   isGrounded: 0
+  wheelAssemblyMass: 20
+  driveSlipStiffness: 250
+  wheelAngularVelocity: 0
+  driveTorque: 0
 --- !u!114 &89347236660081178
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -274,10 +290,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Suspension
   carBody: {fileID: 1719965589584266589}
+  tireProfile: {fileID: 11400000, guid: 480de05c75f38134da24b9da524d30e8, type: 2}
   springStrength: 6000
   damping: 1500
   tireGripFactor: 0.4
-  powerScale: 10
   maxBrakeForce: 1500
   brakeFrictionCoefficient: 0.9
   brakeInput: 0
@@ -299,7 +315,15 @@ MonoBehaviour:
   rollResistanceLimit: 0
   rollStopLimit: 0
   rollForceAtStopLimit: 0
+  slipRatio: 0
+  slipAngle: 0
+  gripUsage: 0
+  gripScale: 1
   isGrounded: 0
+  wheelAssemblyMass: 20
+  driveSlipStiffness: 250
+  wheelAngularVelocity: 0
+  driveTorque: 0
 --- !u!114 &3970356206939180366
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1310,7 +1334,7 @@ Rigidbody:
   m_ExcludeLayers:
     serializedVersion: 2
     m_Bits: 0
-  m_ImplicitCom: 1
+  m_ImplicitCom: 0
   m_ImplicitTensor: 1
   m_UseGravity: 1
   m_IsKinematic: 0
@@ -1369,6 +1393,11 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  overrideCenterOfMass: 1
+  centerOfMass: {x: 0, y: 0, z: 0}
+  frontAntiRollStiffness: 2500
+  rearAntiRollStiffness: 1200
+  drivetrainSubSteps: 20
 --- !u!114 &2256699045578040137
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1381,7 +1410,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51c24130371b21f45a56838b00d68195, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CarCamera
-  carTransform: {fileID: 2117203630190365347}
   distance: 6.68
   height: 8
   smoothingSpeed: 0.8
@@ -1401,8 +1429,8 @@ MonoBehaviour:
     serializedVersion: 2
     m_Curve:
     - serializedVersion: 3
-      time: 0.099996746
-      value: 0.0030287579
+      time: 0.1
+      value: 0.031
       inSlope: 0
       outSlope: 0
       tangentMode: 136
@@ -1410,17 +1438,35 @@ MonoBehaviour:
       inWeight: 0.33333334
       outWeight: 0.33333334
     - serializedVersion: 3
-      time: 0.17519832
-      value: 0.07592127
-      inSlope: 0.52725327
-      outSlope: 0.52725327
+      time: 0.15
+      value: 0.061
+      inSlope: 0.54
+      outSlope: 0.54
       tangentMode: 136
       weightedMode: 0
       inWeight: 0.33333334
       outWeight: 0.33333334
     - serializedVersion: 3
-      time: 0.29963887
-      value: 0.10829072
+      time: 0.2
+      value: 0.085
+      inSlope: 0.36
+      outSlope: 0.36
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.25
+      value: 0.097
+      inSlope: 0.17
+      outSlope: 0.17
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.3
+      value: 0.102
       inSlope: 0
       outSlope: 0
       tangentMode: 136
@@ -1428,17 +1474,53 @@ MonoBehaviour:
       inWeight: 0.33333334
       outWeight: 0.33333334
     - serializedVersion: 3
-      time: 0.5045734
-      value: 0.08322695
-      inSlope: -0.12462641
-      outSlope: -0.12462641
+      time: 0.35
+      value: 0.101
+      inSlope: -0.025
+      outSlope: -0.025
       tangentMode: 136
       weightedMode: 0
       inWeight: 0.33333334
       outWeight: 0.33333334
     - serializedVersion: 3
-      time: 0.60068196
-      value: 0.0707728
+      time: 0.4
+      value: 0.0995
+      inSlope: -0.045
+      outSlope: -0.045
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.45
+      value: 0.0965
+      inSlope: -0.065
+      outSlope: -0.065
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.5
+      value: 0.093
+      inSlope: -0.085
+      outSlope: -0.085
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.55
+      value: 0.088
+      inSlope: -0.21
+      outSlope: -0.21
+      tangentMode: 136
+      weightedMode: 0
+      inWeight: 0.33333334
+      outWeight: 0.33333334
+    - serializedVersion: 3
+      time: 0.6
+      value: 0.072
       inSlope: 0
       outSlope: 0
       tangentMode: 136
@@ -1454,23 +1536,34 @@ MonoBehaviour:
   - 1.3
   - 1
   - 0.8
+  reverseRation: 3.5
+  maxReverseShiftSpeed: 1
   axleRatio: 4
   efficiency: 0.85
   tireRadius: 0.31
   idleRevolutions: 1000
   maxRevolutions: 6000
   rpmChangeSpeed: 3000
-  launchRevolutions: 2000
+  engineInertia: 0.15
+  engineFrictionTorque: 30
+  idleGovernorGain: 0.05
+  clutchStiffness: 0.2
+  maxClutchTorque: 220
+  lockEpsilonRpm: 50
+  stallRpm: 600
+  restartDelay: 1
+  gearShiftClutchBlendDuration: 0.2
   revLimiterFadeRange: 300
   revolutionsPerMinute: 0
   speedInKmH: 0
-  calculatedTorque: 0
-  currentTimeOnPedle: 0
   currentGear: 1
   isOnGasPadle: 0
-  isClutchSlipping: 0
+  engineStalled: 0
   gearboxRevolutions: 0
   revLimiterFactor: 1
+  debugCombustionTorque: 0
+  debugFrictionTorque: 0
+  debugClutchReactionTorque: 0
 --- !u!114 &3303423635726110354
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1538,10 +1631,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Suspension
   carBody: {fileID: 1719965589584266589}
+  tireProfile: {fileID: 11400000, guid: 480de05c75f38134da24b9da524d30e8, type: 2}
   springStrength: 6000
   damping: 1500
   tireGripFactor: 0.4
-  powerScale: 10
   maxBrakeForce: 1500
   brakeFrictionCoefficient: 0.9
   brakeInput: 0
@@ -1563,7 +1656,15 @@ MonoBehaviour:
   rollResistanceLimit: 0
   rollStopLimit: 0
   rollForceAtStopLimit: 0
+  slipRatio: 0
+  slipAngle: 0
+  gripUsage: 0
+  gripScale: 1
   isGrounded: 0
+  wheelAssemblyMass: 20
+  driveSlipStiffness: 250
+  wheelAngularVelocity: 0
+  driveTorque: 0
 --- !u!114 &4781024094507919664
 MonoBehaviour:
   m_ObjectHideFlags: 0

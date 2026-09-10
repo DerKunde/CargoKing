@@ -676,5 +676,100 @@ namespace CargoKing.Tests
             SimulateStandingStart(DefaultSubSteps, out _, out _, out float finalSpeed);
             Assert.Greater(finalSpeed, 3f);
         }
+
+        // --- Loop test: launch assist ---------------------------------------------------------
+
+        private const float LaunchEngageRpm = 1100f;
+        private const float LaunchFullRpm = 2200f;
+        private const float LaunchStandstillKmh = 1f;
+
+        /// <summary>
+        /// The clutch key let go at idle, then a fixed throttle - what a keyboard driver does. The
+        /// whole car (800 kg) is pushed by the two rear wheels, and the launch assist runs the way
+        /// CarEngine.Tick drives it: rpm-dependent capacity until the clutch first holds.
+        /// </summary>
+        private static void SimulateLaunchFromIdle(
+            float throttle, out float minimumEngineRpm, out float maximumSlip, out float finalSpeed, out bool assistActiveAtEnd)
+        {
+            const float brakeTorqueFromCurve = 80f;
+            const float carMass = 800f;
+            float h = Step / DefaultSubSteps;
+            float rollingTorque = RollingResistance * NominalLoad * WheelRadius;
+
+            float engine = EngineIdleRpm * 2f * Mathf.PI / 60f;
+            float wheel = 0f;
+            float v = 0f;
+            bool assistActive = true;
+
+            minimumEngineRpm = float.MaxValue;
+            maximumSlip = 0f;
+
+            for (int k = 0; k < 200; k++)
+            {
+                float impulse = 0f;
+                for (int i = 0; i < DefaultSubSteps; i++)
+                {
+                    TireForces tire = TireMath.EvaluateTire(Tire, wheel, WheelRadius, WheelInertia,
+                        v, 0f, NominalLoad, QuarterBody, QuarterBody, Step, h);
+
+                    float wheelExternal = -tire.Longitudinal * WheelRadius - Mathf.Sign(wheel) * rollingTorque;
+                    DrivelineLoad axle = DriveTrainMath.OpenDifferentialLoad(
+                        wheel, wheel, WheelInertia, WheelInertia, wheelExternal, wheelExternal);
+
+                    float rpm = DriveTrainMath.AngularVelocityToRpm(engine);
+                    float friction = DriveTrainMath.EngineFrictionTorque(rpm, EngineMaxRpm, EngineFrictionAtMax);
+                    float governor = DriveTrainMath.IdleGovernorTorque(rpm, EngineIdleRpm, EngineMaxRpm, EngineFrictionAtMax, EngineIdleGain);
+                    float engineNet = DriveTrainMath.CombustionTorque(brakeTorqueFromCurve, friction, governor, throttle) - friction;
+
+                    float capacity = assistActive
+                        ? DriveTrainMath.LaunchClutchCapacity(rpm, LaunchEngageRpm, LaunchFullRpm, MaxClutchTorque)
+                        : MaxClutchTorque;
+                    float locked = DriveTrainMath.LockedClutchTorque(engine, axle.AngularVelocity, engineNet, axle.ExternalTorque,
+                        EngineInertia, axle.Inertia, FirstGearRatio, DrivelineEfficiency, h);
+                    float clutch = Mathf.Clamp(locked, -capacity, capacity);
+                    assistActive = DriveTrainMath.LaunchAssistActive(assistActive, clutchHeld: false,
+                        standing: v * 3.6f < LaunchStandstillKmh, clutchSlipping: Mathf.Abs(locked) > capacity);
+
+                    engine += (engineNet - clutch) / EngineInertia * h;
+                    float wheelTorque = DriveTrainMath.OpenDifferentialWheelTorque(clutch * FirstGearRatio * DrivelineEfficiency);
+                    wheel = TireMath.IntegrateWheel(wheel, wheelTorque, tire.Longitudinal, WheelRadius, WheelInertia, rollingTorque, h);
+
+                    impulse += 2f * tire.Longitudinal * h;
+                    maximumSlip = Mathf.Max(maximumSlip, tire.SlipRatio);
+                    minimumEngineRpm = Mathf.Min(minimumEngineRpm, DriveTrainMath.AngularVelocityToRpm(engine));
+                }
+
+                v += impulse / carMass;
+            }
+
+            finalSpeed = v;
+            assistActiveAtEnd = assistActive;
+        }
+
+        [TestCase(1f)]
+        [TestCase(0.3f)]
+        public void LaunchAssist_ClutchLetGoAtIdle_NeverStallsTheEngine(float throttle)
+        {
+            SimulateLaunchFromIdle(throttle, out float minimumRpm, out _, out _, out _);
+            Assert.Greater(minimumRpm, 600f);
+        }
+
+        [Test]
+        public void LaunchAssist_FullThrottle_PullsAwayWithoutSpinningTheWheels()
+        {
+            // The complaint this exists for: with the clutch as a plain key the only launch that
+            // did not stall was one with the rear wheels spinning at several hundred percent slip.
+            SimulateLaunchFromIdle(1f, out _, out float maximumSlip, out float finalSpeed, out _);
+
+            Assert.Less(maximumSlip, 0.5f);
+            Assert.Greater(finalSpeed, 3f);
+        }
+
+        [Test]
+        public void LaunchAssist_FullThrottle_HandsOverToTheFullClutchOnceItHolds()
+        {
+            SimulateLaunchFromIdle(1f, out _, out _, out _, out bool assistActiveAtEnd);
+            Assert.IsFalse(assistActiveAtEnd);
+        }
     }
 }

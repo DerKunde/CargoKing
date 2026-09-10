@@ -264,6 +264,11 @@ namespace CargoKing.Car
             // themselves are slowing and the engine is faithfully following them".
             DebugGraph.Plot("Drivetrain", "Clutch Gap RPM", carEngine.revolutionsPerMinute - carEngine.gearboxRevolutions, -2000f, 2000f);
 
+            // Whether the launch assist is in charge and what it lets through - so a log shows
+            // where a launch ended and whether the clutch was slipping on its take-up or holding.
+            DebugGraph.Plot("Drivetrain", "Launch Assist", carEngine.launchAssistActive ? 1f : 0f, 0f, 1f);
+            DebugGraph.Plot("Drivetrain", "Clutch Capacity", carEngine.debugClutchCapacity, 0f, 230f);
+
             // Per wheel, what the tire is doing and how close to its limit: grip usage 1 means the
             // contact patch is at the edge of its friction ellipse, whatever mix of cornering,
             // braking and drive put it there.

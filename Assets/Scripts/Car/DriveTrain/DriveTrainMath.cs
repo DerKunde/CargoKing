@@ -235,5 +235,41 @@ namespace CargoKing.Car
         {
             return carrierTorque * 0.5f;
         }
+
+        /// <summary>
+        /// What the clutch may pass on during a launch, N*m, from engine speed alone - the take-up
+        /// a driver does with the pedal, for a clutch that is only a key. Nothing at or below
+        /// <paramref name="engageRpm"/>, so letting go at idle cannot stall the engine; the whole
+        /// plate from <paramref name="fullRpm"/> up. Quadratic in between, so it bites softly
+        /// first. With throttle the engine climbs until what it makes matches what the clutch
+        /// takes, and the clutch slips there until the car has caught up with it.
+        /// </summary>
+        public static float LaunchClutchCapacity(float rpm, float engageRpm, float fullRpm, float maxClutchTorque)
+        {
+            if (fullRpm <= engageRpm)
+            {
+                return rpm > engageRpm ? maxClutchTorque : 0f;
+            }
+
+            float takeUp = Mathf.Clamp01((rpm - engageRpm) / (fullRpm - engageRpm));
+            return maxClutchTorque * takeUp * takeUp;
+        }
+
+        /// <summary>
+        /// Whether the launch assist stays in charge for the next step. It ends the first time the
+        /// clutch holds - engine and wheels turning together is what "launched" means - and from
+        /// then on the plate works with its full capacity, so the engine can be stalled again like
+        /// any manual. Only a standstill or the clutch key brings it back: a clutch that slips for a
+        /// moment during a gear shift is not a launch.
+        /// </summary>
+        public static bool LaunchAssistActive(bool wasActive, bool clutchHeld, bool standing, bool clutchSlipping)
+        {
+            if (clutchHeld || standing)
+            {
+                return true;
+            }
+
+            return wasActive && clutchSlipping;
+        }
     }
 }
