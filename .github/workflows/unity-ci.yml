@@ -101,7 +101,9 @@ jobs:
 
       - name: Run tests
         id: unity_tests
-        uses: game-ci/unity-test-runner@v4
+        # Pinned: @v4 moved to the v4.4.0 rewrite, which rejects UNITY_LICENSE, takes a Personal
+        # seat through the account instead and then fails to return it.
+        uses: game-ci/unity-test-runner@v4.3.2
         env:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
