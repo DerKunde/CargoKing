@@ -2,18 +2,45 @@ using UnityEngine;
 
 namespace CargoKing.Car
 {
+    /// <summary>
+    /// One wheel: raycast suspension, tire contact patch and wheel spin.
+    ///
+    /// No FixedUpdate of its own. The drivetrain runs in sub-steps across the engine and all
+    /// wheels together, and only one place can own that loop - CarController calls the phases of
+    /// each physics step in order: <see cref="UpdateContact"/> once, then
+    /// <see cref="EvaluateTire"/> and <see cref="IntegrateWheel"/> once per sub-step, then
+    /// <see cref="ApplyTireForce"/> once.
+    /// </summary>
     public class Suspension : MonoBehaviour
     {
         [Header("References")]
         public Rigidbody carBody;
 
+        [Header("Tire")]
+        [Tooltip("Pacejka curves for this wheel. Left empty, built-in defaults are used and a warning is logged.")]
+        public TireProfile tireProfile;
+
         [Header("Suspension Settings")]
         private float restLength = 0.6f;
         public float springStrength = 300;
         public float damping = 25;
+
+        // Unused since the Pacejka tire model (2026-09-10): the lateral force now comes from the
+        // slip-angle curve in tireProfile, and the deadbeat term this used to tune lives on as the
+        // low-speed stability cap (TireMath.StabilityFraction, fixed at the 0.4 this was set to).
+        // Left in place rather than deleted, per project convention on dead fields.
         public float tireGripFactor = 0.9f;
+
         [Header("Brakes")]
+        /// <summary>
+        /// Brake force at the tire radius, N. Applied as a torque on the wheel (this times the
+        /// radius), so a brake stronger than the grip locks the wheel rather than being clamped at
+        /// the body. Kept in newtons rather than N*m so the prefab's front/rear split carries over.
+        /// </summary>
         public float maxBrakeForce = 2200f;
+
+        // Unused since the Pacejka tire model (2026-09-10): the grip limit is D in tireProfile.
+        // Left in place rather than deleted, per project convention on dead fields.
         public float brakeFrictionCoefficient = 0.9f;
 
         [SerializeField] private float brakeInput;
@@ -41,14 +68,35 @@ namespace CargoKing.Car
         public float gripLimit;
         public Vector3 tireForce;
         public float rollResistanceLimit;
-        public float rollStopLimit;
-        public bool rollForceAtStopLimit;
 
         /// <summary>
-        /// How much of what the contact patch was asked for it could actually deliver: 1 means the
-        /// tire had grip to spare, lower means cornering, braking and drive together went over the
-        /// friction circle and all three were cut back by this factor.
+        /// The longitudinal stability cap against the body this step, N - the most force one step
+        /// may use to close the gap between tire surface and ground (see TireMath.CapForce).
         /// </summary>
+        public float rollStopLimit;
+
+        /// <summary>
+        /// True when a stability cap rather than the Pacejka curve set the longitudinal force in
+        /// at least one sub-step - near standstill, where the tire behaves as it did before the
+        /// Pacejka model.
+        /// </summary>
+        public bool rollForceAtStopLimit;
+
+        /// <summary>Slip ratio in the last sub-step: 0 free rolling, positive driving, negative braking.</summary>
+        public float slipRatio;
+
+        /// <summary>Slip angle in the last sub-step, degrees.</summary>
+        public float slipAngle;
+
+        /// <summary>
+        /// How much of the contact patch's grip the tire used in the last sub-step: 1 at the
+        /// limit of the (load-scaled) friction ellipse, lower with grip to spare.
+        /// </summary>
+        public float gripUsage;
+
+        // Unused since the Pacejka tire model (2026-09-10): combined slip no longer scales the
+        // forces down after the fact, so there is no scale factor left to show - gripUsage above
+        // reports the same thing from the other side. Left in place rather than deleted.
         public float gripScale = 1f;
 
         public bool isGrounded;
@@ -62,33 +110,38 @@ namespace CargoKing.Car
         /// </summary>
         public float wheelAssemblyMass = 20f;
 
-        /// <summary>
-        /// Longitudinal grip force per m/s of slip between the tire's surface speed and the
-        /// ground, N/(m/s). Deliberately NOT a "cancel all slip this frame" gain like the lateral
-        /// force uses (desiredAcceleration = ... / Time.fixedDeltaTime): that style's implicit
-        /// gain, fed back through driveReactionTorque onto the wheel's own (small) inertia,
-        /// overshoots and oscillates once wheelInertia is a realistic wheel mass rather than a
-        /// quarter of the car - the lateral force stays stable because it only ever acts on the
-        /// heavy car body, never on the wheel's own spin.
-        /// </summary>
+        // Unused since the Pacejka tire model (2026-09-10): the longitudinal force comes from the
+        // slip-ratio curve in tireProfile, integrated in sub-steps so a realistic tire stiffness
+        // no longer oscillates against the wheel's small inertia. Left in place rather than
+        // deleted, per project convention on dead fields.
         public float driveSlipStiffness = 250f;
 
         /// <summary>
         /// Radians/second, positive = tire surface moving in the same direction as
-        /// <see cref="rollDirection"/>. Integrated from net torque every FixedUpdate - not
+        /// <see cref="rollDirection"/>. Integrated from net torque every sub-step - not
         /// re-derived from ground velocity, so it keeps turning under drive torque even with no
         /// ground contact.
         /// </summary>
         public float wheelAngularVelocity;
 
         /// <summary>
-        /// Torque handed in by <see cref="CarController"/> from the driveline, N*m. Left at 0 for
-        /// wheels that are not driven (front wheels today).
+        /// Torque handed in by <see cref="CarController"/> from the driveline each sub-step, N*m.
+        /// Left at 0 for wheels that are not driven (front wheels today).
         /// </summary>
         [HideInInspector] public float driveTorque;
 
-        private float driveReactionTorque;
-        private float resistiveReactionTorque;
+        private static TireProfile defaultProfile;
+
+        private TireCurves curves;
+        private TireForces tireForces;
+        private float normalForce;
+        private float forwardVelocity;
+        private float lateralVelocity;
+        private float lateralReferenceMass;
+        private float stepDeltaTime;
+        private float longitudinalImpulse;
+        private float lateralImpulse;
+        private bool longitudinalCapped;
 
         /// <summary>
         /// This wheel's rotational inertia, kg*m^2. Read by <see cref="CarController"/> so the
@@ -98,17 +151,20 @@ namespace CargoKing.Car
         public float WheelInertia => wheelInertia;
 
         /// <summary>
-        /// Everything except the driveline acting on this wheel's spin this step, N*m, signed the
-        /// same way as <see cref="wheelAngularVelocity"/>: the ground's reaction to the drive
-        /// force, plus brakes and rolling resistance. Zero while airborne.
+        /// Everything except the driveline acting on this wheel's spin in the current sub-step,
+        /// N*m, signed the same way as <see cref="wheelAngularVelocity"/>: the ground's reaction
+        /// to the tire force, plus brakes and rolling resistance.
         /// </summary>
-        public float ExternalTorque => -(driveReactionTorque + resistiveReactionTorque);
+        public float ExternalTorque => -tireForces.Longitudinal * wheelRadius - Mathf.Sign(wheelAngularVelocity) * FrictionTorque;
 
         /// <summary>
         /// How far the strut is extended: 0 fully compressed, 1 at rest length or in the air. The
         /// anti roll bar reads it to see how far the two wheels of an axle have parted.
         /// </summary>
         public float ExtensionRatio => extensionRatio;
+
+        /// <summary>Brake plus rolling resistance on the wheel's spin, N*m. Rolling resistance is zero in the air.</summary>
+        private float FrictionTorque => (brakeInput * maxBrakeForce + rollingResistanceCoefficient * normalForce) * wheelRadius;
 
         private float extensionRatio = 1f;
         private Vector3 _suspensionForcePointLocal;
@@ -144,10 +200,36 @@ namespace CargoKing.Car
                 wheelInertia = 0.5f * wheelAssemblyMass * wheelRadius * wheelRadius;
                 _baseLocalRotation = wheelmeshToRotate.localRotation;
             }
+
+            // Keeps the car driveable before the prefab has a profile assigned, rather than
+            // throwing on the first physics step.
+            if (tireProfile == null)
+            {
+                if (defaultProfile == null)
+                {
+                    defaultProfile = ScriptableObject.CreateInstance<TireProfile>();
+                    defaultProfile.hideFlags = HideFlags.DontSave;
+                }
+
+                tireProfile = defaultProfile;
+                Debug.LogWarning($"{name}: no TireProfile assigned, using built-in defaults. Create one via Create > CargoKing > Tire Profile.", this);
+            }
         }
 
-        void FixedUpdate()
+        /// <summary>
+        /// Phase 1, once per physics step: raycast, spring force, and everything the tire needs
+        /// about its contact patch for the sub-steps that follow - load, contact frame, and the
+        /// contact point's velocity, which stays frozen across the sub-steps.
+        /// </summary>
+        public void UpdateContact(float deltaTime)
         {
+            stepDeltaTime = deltaTime;
+            curves = tireProfile.Curves;
+            tireForces = default;
+            longitudinalImpulse = 0f;
+            lateralImpulse = 0f;
+            longitudinalCapped = false;
+
             Vector3 springDirection = transform.up;
 
             Vector3 origin = transform.position;
@@ -158,8 +240,8 @@ namespace CargoKing.Car
             {
                 float offset = restLength - (hit.distance - wheelRadius);
 
-                Vector3 tireWorldVelocity = carBody.GetPointVelocity(wheelMesh.position);
-                float velocity = Vector3.Dot(springDirection, tireWorldVelocity);
+                Vector3 wheelVelocity = carBody.GetPointVelocity(wheelMesh.position);
+                float velocity = Vector3.Dot(springDirection, wheelVelocity);
 
                 float force = CalculateSpringForce(offset, velocity);
 
@@ -173,20 +255,30 @@ namespace CargoKing.Car
                 wheelMesh.position = transform.position - transform.up * (hit.distance - wheelRadius);
                 wheelmeshToRotate.position = transform.position - transform.up * (hit.distance - wheelRadius);
 
-
                 Vector3 gripForcePoint = wheelMesh.position;
                 _tireForcePointLocal = transform.InverseTransformPoint(gripForcePoint);
-                carBody.AddForceAtPosition(CalculateTireForces(gripForcePoint), gripForcePoint);
+
+                lateralAxis = wheelMesh.up;
+                rollDirection = wheelMesh.forward;
+                tireWorldVelocity = carBody.GetPointVelocity(gripForcePoint);
+                forwardVelocity = Vector3.Dot(rollDirection, tireWorldVelocity);
+                lateralVelocity = Vector3.Dot(lateralAxis, tireWorldVelocity);
+                normalForce = Mathf.Max(0f, suspensionForce.y);
+
+                // EffectiveMassAt, not tireMass: this is the reference the old deadbeat lateral
+                // term was stable with, and the lateral cap is that term.
+                lateralReferenceMass = EffectiveMassAt(gripForcePoint, lateralAxis);
 
                 _debugFrame = transform.rotation;
             }
             else
             {
-                // Wheel in the air: reset the display values, or the old arrows stay put. Reaction
-                // torques go to zero too - there is no contact patch to push back through, so the
-                // wheel keeps spinning under driveTorque alone (or coasts under its own inertia).
+                // Wheel in the air: reset the display values, or the old arrows stay put. No load
+                // means no tire force, so the wheel keeps spinning under driveTorque alone (or
+                // coasts under its own inertia) - the brake still stops it.
                 isGrounded = false;
                 extensionRatio = 1f;
+                normalForce = 0f;
                 _debugFrame = transform.rotation;
                 suspensionForce = Vector3.zero;
                 tireSlip = Vector3.zero;
@@ -197,24 +289,75 @@ namespace CargoKing.Car
                 rollResistanceLimit = 0f;
                 rollStopLimit = 0f;
                 rollForceAtStopLimit = false;
-                driveReactionTorque = 0f;
-                resistiveReactionTorque = 0f;
+                slipRatio = 0f;
+                slipAngle = 0f;
+                gripUsage = 0f;
             }
-
-            IntegrateWheelRotation();
-            VisualWheelRotation();
         }
 
         /// <summary>
-        /// driveTorque minus whatever the ground (or the brake, direct on the axle) pushes back
-        /// with. Runs every FixedUpdate regardless of ground contact - driveReactionTorque and
-        /// resistiveReactionTorque come from the tire force calculation while grounded, and are
-        /// reset to 0 above while airborne.
+        /// Phase 2a, once per sub-step: the tire force from the wheel's current spin, accumulated
+        /// for <see cref="ApplyTireForce"/>. Must run before the engine's sub-step so the clutch
+        /// sees this sub-step's <see cref="ExternalTorque"/>.
         /// </summary>
-        private void IntegrateWheelRotation()
+        public void EvaluateTire(float subStepDeltaTime)
         {
-            float netTorque = driveTorque - driveReactionTorque - resistiveReactionTorque;
-            wheelAngularVelocity += netTorque / wheelInertia * Time.fixedDeltaTime;
+            if (!isGrounded)
+            {
+                tireForces = default;
+                return;
+            }
+
+            // tireMass as the body reference, not EffectiveMassAt: four wheels act on the same
+            // body, so each may only claim its quarter of the total impulse. With EffectiveMassAt
+            // the four together push with a multiple of it and the car oscillates.
+            tireForces = TireMath.EvaluateTire(curves, wheelAngularVelocity, wheelRadius, wheelInertia,
+                forwardVelocity, lateralVelocity, normalForce, tireMass, lateralReferenceMass,
+                stepDeltaTime, subStepDeltaTime);
+
+            longitudinalImpulse += tireForces.Longitudinal * subStepDeltaTime;
+            lateralImpulse += tireForces.Lateral * subStepDeltaTime;
+            longitudinalCapped |= tireForces.LongitudinalCapped;
+        }
+
+        /// <summary>
+        /// Phase 2b, once per sub-step after the engine: the wheel's spin under
+        /// <see cref="driveTorque"/>, the tire's reaction, brakes and rolling resistance.
+        /// </summary>
+        public void IntegrateWheel(float subStepDeltaTime)
+        {
+            wheelAngularVelocity = TireMath.IntegrateWheel(wheelAngularVelocity, driveTorque, tireForces.Longitudinal,
+                wheelRadius, wheelInertia, FrictionTorque, subStepDeltaTime);
+        }
+
+        /// <summary>
+        /// Phase 3, once per physics step: the tire force averaged over the sub-steps goes onto
+        /// the body at the contact point.
+        /// </summary>
+        public void ApplyTireForce()
+        {
+            if (isGrounded)
+            {
+                float longitudinal = longitudinalImpulse / stepDeltaTime;
+                float lateral = lateralImpulse / stepDeltaTime;
+
+                tireLongitudinalForce = rollDirection * longitudinal;
+                tireSlip = lateralAxis * lateral;
+                tireForce = tireLongitudinalForce + tireSlip;
+                carBody.AddForceAtPosition(tireForce, tireForcePoint);
+
+                slipRatio = tireForces.SlipRatio;
+                slipAngle = tireForces.SlipAngle;
+                gripUsage = tireForces.GripUsage;
+                brakeForceDemand = brakeInput * maxBrakeForce;
+                gripLimit = curves.Longitudinal.d * TireMath.LoadFactor(normalForce, curves.NominalLoad, curves.LoadSensitivity) * normalForce;
+                rollResistanceLimit = rollingResistanceCoefficient * normalForce;
+                rollStopLimit = TireMath.StabilityFraction * tireMass
+                    * Mathf.Abs(wheelAngularVelocity * wheelRadius - forwardVelocity) / stepDeltaTime;
+                rollForceAtStopLimit = longitudinalCapped;
+            }
+
+            VisualWheelRotation();
         }
 
         private void VisualWheelRotation()
@@ -247,83 +390,6 @@ namespace CargoKing.Car
             return (offset * springStrength) - (velocity * damping);
         }
 
-        private Vector3 CalculateTireForces(Vector3 forcePoint)
-        {
-            lateralAxis = wheelMesh.up;
-            rollDirection = wheelMesh.forward;
-            tireWorldVelocity = carBody.GetPointVelocity(forcePoint);
-
-            float steeringValue = Vector3.Dot(lateralAxis, tireWorldVelocity);
-            float desiredVelocityChange = -steeringValue * tireGripFactor;
-            float desiredAcceleration = desiredVelocityChange / Time.fixedDeltaTime;
-
-            float effMass = EffectiveMassAt(forcePoint, lateralAxis);
-            float lateralDemand = effMass * desiredAcceleration;
-
-            float forwardVel = Vector3.Dot(rollDirection, tireWorldVelocity);
-            float normalForce = Mathf.Max(0f, suspensionForce.y);
-
-            // Drive: proportional to the gap between the tire's own surface speed and the ground.
-            // This is what actually moves the car now - its sign follows wheel spin vs. ground
-            // speed, not forwardVel, so it can push the car forward from a standstill. See
-            // driveSlipStiffness for why this is a plain proportional force, not the "cancel the
-            // error this frame" style the lateral force above uses.
-            float wheelSurfaceSpeed = wheelAngularVelocity * wheelRadius;
-            float slipVelocity = wheelSurfaceSpeed - forwardVel;
-            float driveDemand = driveSlipStiffness * slipVelocity;
-
-            // Rolling resistance is a constant force against the roll direction. Only a constant
-            // force stops the car in finite time; damping proportional to v decays with v and
-            // creeps on forever.
-            //
-            // Anti-reversal clamp below: never more force than it takes to bring forwardVel to
-            // zero this step, otherwise the resistance pushes the standing car backwards and it
-            // jitters around zero. At forwardVel == 0 the limit is 0, so Mathf.Sign(0) == 1
-            // does no harm.
-            //
-            // Reference mass is tireMass (= carBody.mass / 4), NOT EffectiveMassAt: four wheels
-            // act on the same body, so each may only claim its quarter of the total impulse.
-            // With EffectiveMassAt the four together brake with a multiple of the needed
-            // impulse and the car oscillates. Same reasoning applies to driveDemand above.
-            brakeForceDemand = brakeInput * maxBrakeForce;
-            rollResistanceLimit = rollingResistanceCoefficient * normalForce;
-            rollStopLimit = Mathf.Abs(forwardVel) * tireMass / Time.fixedDeltaTime;
-            float resistiveMagnitude = Mathf.Min(brakeForceDemand + rollResistanceLimit, rollStopLimit);
-            rollForceAtStopLimit = rollStopLimit < brakeForceDemand + rollResistanceLimit;
-            float resistiveDemand = -Mathf.Sign(forwardVel) * resistiveMagnitude;
-
-            // A tire cannot pass on more than its share of the load allows. This is the budget for
-            // everything the contact patch does - cornering, braking and now driving too.
-            gripLimit = brakeFrictionCoefficient * normalForce;
-            float longitudinalDemand = driveDemand + resistiveDemand;
-
-            // Friction circle. One contact patch serves cornering, braking and driving, so all
-            // three draw on the same budget and are scaled down together when they ask for more
-            // than it holds.
-            //
-            // The lateral force used to have no limit at all - only the longitudinal part was checked
-            // against the load. A tire could therefore corner at any force its slip called for, the
-            // car pulled well over 1 g, and the load transfer that follows from that lifted the inside
-            // wheels off the road in nearly every bend.
-            float combined = Mathf.Sqrt(lateralDemand * lateralDemand + longitudinalDemand * longitudinalDemand);
-            float scale = combined > gripLimit && combined > 0f ? gripLimit / combined : 1f;
-            gripScale = scale;
-
-            tireSlip = lateralAxis * (lateralDemand * scale);
-            tireLongitudinalForce = rollDirection * (longitudinalDemand * scale);
-            tireForce = tireSlip + tireLongitudinalForce;
-
-            // Wheel-side reaction, kept separate from the body force above: the ground's reaction
-            // to the drive-slip force opposes the wheel's own spin (Newton's third law, drive path
-            // only). Brake and rolling resistance act directly on the wheel/axle and always oppose
-            // its current spin direction - not the body's; the two only agree while the wheel
-            // rolls without slipping.
-            driveReactionTorque = driveDemand * scale * wheelRadius;
-            resistiveReactionTorque = Mathf.Sign(wheelAngularVelocity) * resistiveMagnitude * scale * wheelRadius;
-
-            return tireForce;
-        }
-
         private float EffectiveMassAt(Vector3 point, Vector3 dir)
         {
             Vector3 r = point - carBody.worldCenterOfMass;
@@ -343,13 +409,19 @@ namespace CargoKing.Car
             brakeInput = Mathf.Clamp01(value);
         }
 
+        /// <summary>
+        /// The most braking force this wheel can pass to the road right now, N: the brake itself
+        /// or the tire's peak grip, whichever is smaller. Read from the profile directly rather
+        /// than from the per-step cache, so it answers before the first physics step as well.
+        /// </summary>
         public float AvailableBrakeForce()
         {
             if (!isGrounded) return 0f;
 
-            float normalForce = Mathf.Max(0f, suspensionForce.y);
-            float demand = maxBrakeForce + rollingResistanceCoefficient * normalForce;
-            return Mathf.Min(demand, brakeFrictionCoefficient * normalForce);
+            float load = Mathf.Max(0f, suspensionForce.y);
+            float grip = tireProfile.longitudinal.d
+                * TireMath.LoadFactor(load, tireProfile.nominalLoad, tireProfile.loadSensitivity) * load;
+            return Mathf.Min(maxBrakeForce + rollingResistanceCoefficient * load, grip);
         }
     }
 }
