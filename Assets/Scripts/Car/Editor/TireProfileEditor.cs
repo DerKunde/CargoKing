@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Text;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -18,6 +20,7 @@ namespace CargoKing.Car.Editor
         private TireCurveGraph lateralGraph;
         private Label longitudinalPeakLabel;
         private Label lateralPeakLabel;
+        private Label liveLegend;
         private VisualElement warnings;
 
         public override VisualElement CreateInspectorGUI()
@@ -49,14 +52,70 @@ namespace CargoKing.Car.Editor
 
             preview.Add(CreateLabel("Bold: nominal load. Faint: 0.5 x and 1.5 x nominal load. Marker: the peak combined slip is normalised with.", "profile-preview-legend"));
 
+            liveLegend = ProfileGraphs.LiveLabel();
+            preview.Add(liveLegend);
+
             warnings = new VisualElement();
             preview.Add(warnings);
 
             root.Add(preview);
 
             root.TrackSerializedObjectValue(serializedObject, _ => Refresh());
+            root.schedule.Execute(RefreshLive).Every(50);
             Refresh();
+            RefreshLive();
             return root;
+        }
+
+        /// <summary>
+        /// One trail per wheel of the car being driven that uses this profile. x is the slip, y the
+        /// friction coefficient actually used - force over load - so where grip is shared between
+        /// driving and cornering the point sits below the curve. Braking slip shows a hollow head.
+        /// </summary>
+        private void RefreshLive()
+        {
+            var profile = (TireProfile)target;
+            var longitudinal = new List<ProfileGraphs.Trail>();
+            var lateral = new List<ProfileGraphs.Trail>();
+            var legend = new StringBuilder();
+
+            foreach (WheelTrace trace in VehicleLiveSampler.Wheels)
+            {
+                if (trace.Wheel == null || trace.Wheel.tireProfile != profile)
+                {
+                    continue;
+                }
+
+                var slipPoints = new List<Vector2>();
+                var anglePoints = new List<Vector2>();
+                for (int i = 0; i < trace.Samples.Count; i++)
+                {
+                    WheelSample sample = trace.Samples[i];
+                    if (!sample.Grounded)
+                    {
+                        continue;
+                    }
+
+                    slipPoints.Add(new Vector2(Mathf.Abs(sample.SlipRatio), sample.LongitudinalMu));
+                    anglePoints.Add(new Vector2(Mathf.Abs(sample.SlipAngle), sample.LateralMu));
+                }
+
+                if (slipPoints.Count == 0)
+                {
+                    continue;
+                }
+
+                bool braking = trace.Samples[trace.Samples.Count - 1].SlipRatio < 0f;
+                longitudinal.Add(new ProfileGraphs.Trail(slipPoints.ToArray(), trace.Color, braking));
+                lateral.Add(new ProfileGraphs.Trail(anglePoints.ToArray(), trace.Color, false));
+                legend.Append($"<color={ProfileGraphs.ColorTag(trace.Color)}>●</color> {trace.Label}   ");
+            }
+
+            longitudinalGraph.SetTrails(longitudinal);
+            lateralGraph.SetTrails(lateral);
+            liveLegend.text = legend.Length > 0
+                ? legend + "- last second, hollow: braking slip"
+                : VehicleLiveSampler.Status ?? "No wheel of the car being driven uses this profile.";
         }
 
         private void Refresh()
@@ -148,6 +207,8 @@ namespace CargoKing.Car.Editor
         private float peak;
         private bool hasPeak;
 
+        private readonly List<ProfileGraphs.Trail> trails = new List<ProfileGraphs.Trail>();
+
         public TireCurveGraph()
         {
             AddToClassList("profile-graph");
@@ -162,6 +223,13 @@ namespace CargoKing.Car.Editor
             this.sensitivity = sensitivity;
             this.peak = peak;
             this.hasPeak = hasPeak;
+            MarkDirtyRepaint();
+        }
+
+        public void SetTrails(IEnumerable<ProfileGraphs.Trail> newTrails)
+        {
+            trails.Clear();
+            trails.AddRange(newTrails);
             MarkDirtyRepaint();
         }
 
@@ -239,6 +307,20 @@ namespace CargoKing.Car.Editor
                 painter.BeginPath();
                 painter.Arc(top, 3.5f, Angle.Degrees(0f), Angle.Degrees(360f));
                 painter.Fill();
+            }
+
+            // Live trails, held at the chart's edge when a wheel slips past the plotted range.
+            foreach (ProfileGraphs.Trail trail in trails)
+            {
+                var points = new Vector2[trail.Points.Length];
+                for (int i = 0; i < points.Length; i++)
+                {
+                    points[i] = new Vector2(
+                        Mathf.Clamp01(trail.Points[i].x / range) * width,
+                        height - Mathf.Clamp01(trail.Points[i].y / yMax) * height);
+                }
+
+                ProfileGraphs.DrawTrail(painter, points, trail.Color, trail.HollowHead);
             }
         }
     }
