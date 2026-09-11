@@ -24,25 +24,7 @@ namespace CargoKing.Car
         public float MaxReverseShiftSpeed => gearboxProfile.maxReverseShiftSpeed;
         public int GearCount => gearboxProfile.GearCount;
 
-        // Unused since the drivetrain rework (2026-09-08): engine RPM and drive torque are now
-        // derived from the driven wheels' own angular velocity (Suspension.wheelAngularVelocity),
-        // not from tire circumference against car body speed. Left in place rather than deleted -
-        // flag for an explicit decision (e.g. reuse to validate this stays consistent with the
-        // wheel prefab's actual radius) rather than silently removing it.
-        public float tireRadius = 0.31f;
-
-        // Unused since removing the artificial RPM/s rate cap from DriveTrainMath.IntegrateEngineRpm:
-        // it created a two-phase (torque-limited, then suddenly capped) response with no physical
-        // basis. Left in place rather than deleted, per project convention on dead fields.
-        public float rpmChangeSpeed = 3000f;
-
         [Header("Clutch")]
-
-        // Unused since the clutch became a solved constraint rather than a spring (see Tick):
-        // an engaged clutch has no stiffness to speak of, it simply holds. Left in place rather
-        // than deleted, per project convention on dead fields.
-        public float clutchStiffness = 0.2f;
-
         public float maxClutchTorque = 220f;
 
         /// <summary>
@@ -57,18 +39,7 @@ namespace CargoKing.Car
         [Tooltip("Launch assist: engine rpm from which the clutch passes on its full capacity.")]
         public float launchFullRpm = 2200f;
 
-        // Unused since the clutch became a solved constraint (see Tick): whether it is locked is
-        // answered by whether the constraint torque fits inside maxClutchTorque, so there is no
-        // state left to detect with an epsilon check. Left in place rather than deleted.
-        public float lockEpsilonRpm = 50f;
-
         public float restartDelay = 1f;
-
-        // Unused since the clutch became a solved constraint (see Tick): a gear shift changes the
-        // ratio, the constraint then asks for more than the plate can hold, and it slips until the
-        // two sides are back together - no special-cased blend window needed. Left in place rather
-        // than deleted.
-        public float gearShiftClutchBlendDuration = 0.2f;
 
         [Header("Calculated Values !!! Do not change !!!")]
         public float revolutionsPerMinute;

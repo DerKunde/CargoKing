@@ -25,12 +25,6 @@ namespace CargoKing.Car
         public float springStrength = 300;
         public float damping = 25;
 
-        // Unused since the Pacejka tire model (2026-09-10): the lateral force now comes from the
-        // slip-angle curve in tireProfile, and the deadbeat term this used to tune lives on as the
-        // low-speed stability cap (TireMath.StabilityFraction, fixed at the 0.4 this was set to).
-        // Left in place rather than deleted, per project convention on dead fields.
-        public float tireGripFactor = 0.9f;
-
         [Header("Brakes")]
         /// <summary>
         /// Brake force at the tire radius, N. Applied as a torque on the wheel (this times the
@@ -38,10 +32,6 @@ namespace CargoKing.Car
         /// the body. Kept in newtons rather than N*m so the prefab's front/rear split carries over.
         /// </summary>
         public float maxBrakeForce = 2200f;
-
-        // Unused since the Pacejka tire model (2026-09-10): the grip limit is D in tireProfile.
-        // Left in place rather than deleted, per project convention on dead fields.
-        public float brakeFrictionCoefficient = 0.9f;
 
         [SerializeField] private float brakeInput;
 
@@ -94,11 +84,6 @@ namespace CargoKing.Car
         /// </summary>
         public float gripUsage;
 
-        // Unused since the Pacejka tire model (2026-09-10): combined slip no longer scales the
-        // forces down after the fact, so there is no scale factor left to show - gripUsage above
-        // reports the same thing from the other side. Left in place rather than deleted.
-        public float gripScale = 1f;
-
         public bool isGrounded;
 
         [Header("Wheel Rotation")]
@@ -109,12 +94,6 @@ namespace CargoKing.Car
         /// 10x too sluggish to spin down under braking or rolling resistance.
         /// </summary>
         public float wheelAssemblyMass = 20f;
-
-        // Unused since the Pacejka tire model (2026-09-10): the longitudinal force comes from the
-        // slip-ratio curve in tireProfile, integrated in sub-steps so a realistic tire stiffness
-        // no longer oscillates against the wheel's small inertia. Left in place rather than
-        // deleted, per project convention on dead fields.
-        public float driveSlipStiffness = 250f;
 
         /// <summary>
         /// Radians/second, positive = tire surface moving in the same direction as
