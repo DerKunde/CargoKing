@@ -675,6 +675,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4838764956128348499, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
+      propertyPath: engineProfile
+      value: 
+      objectReference: {fileID: 11400000, guid: 141f68f154745bf45a91645a0603a128, type: 2}
+    - target: {fileID: 4838764956128348499, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
+      propertyPath: gearboxProfile
+      value: 
+      objectReference: {fileID: 11400000, guid: 0e2e2a2f522192847871e7027235c657, type: 2}
     - target: {fileID: 6306959686309749885, guid: 9ade6a6180ba0e94294d558ecbcc3068, type: 3}
       propertyPath: m_Name
       value: Car_v2 (1)
