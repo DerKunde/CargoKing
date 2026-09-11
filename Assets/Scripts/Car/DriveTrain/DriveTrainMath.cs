@@ -271,5 +271,20 @@ namespace CargoKing.Car
 
             return wasActive && clutchSlipping;
         }
+
+        /// <summary>
+        /// Road speed, m/s, at which the driven wheels turn the engine at <paramref name="engineRpm"/>
+        /// through <paramref name="totalRatio"/> (gear times final drive) with the clutch closed.
+        /// Zero for a zero ratio - that gear does not exist.
+        /// </summary>
+        public static float EngineRpmToRoadSpeed(float engineRpm, float totalRatio, float wheelRadius)
+        {
+            if (Mathf.Approximately(totalRatio, 0f))
+            {
+                return 0f;
+            }
+
+            return engineRpm * 2f * Mathf.PI / 60f / Mathf.Abs(totalRatio) * wheelRadius;
+        }
     }
 }

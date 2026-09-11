@@ -499,5 +499,20 @@ namespace CargoKing.Tests
         {
             Assert.IsTrue(DriveTrainMath.LaunchAssistActive(wasActive: false, clutchHeld: true, standing: false, clutchSlipping: false));
         }
+
+        [Test]
+        public void EngineRpmToRoadSpeed_UndoesGearAndWheel()
+        {
+            // 3000 rpm through 4th gear (1.0) and a 4.0 axle is 750 wheel rpm = 78.54 rad/s;
+            // on a 0.31 m wheel that is 24.35 m/s.
+            float speed = DriveTrainMath.EngineRpmToRoadSpeed(3000f, 4f, 0.31f);
+            Assert.AreEqual(24.3473f, speed, 24.3473f * 1e-4f);
+        }
+
+        [Test]
+        public void EngineRpmToRoadSpeed_WithZeroRatio_IsZero()
+        {
+            Assert.AreEqual(0f, DriveTrainMath.EngineRpmToRoadSpeed(3000f, 0f, 0.31f));
+        }
     }
 }
