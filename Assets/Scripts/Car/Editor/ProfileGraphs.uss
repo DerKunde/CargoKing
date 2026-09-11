@@ -1,13 +1,13 @@
-.tire-preview {
+.profile-preview {
     margin-top: 8px;
 }
 
-.tire-preview-header {
+.profile-preview-header {
     -unity-font-style: bold;
     margin-top: 6px;
 }
 
-.tire-graph {
+.profile-graph {
     height: 140px;
     margin-top: 2px;
     margin-bottom: 2px;
@@ -15,12 +15,17 @@
     overflow: hidden;
 }
 
-.tire-preview-caption {
+.profile-preview-caption {
     white-space: normal;
 }
 
-.tire-preview-legend {
+.profile-preview-legend {
     white-space: normal;
     margin-top: 6px;
     opacity: 0.7;
+}
+
+.profile-live {
+    white-space: normal;
+    margin-top: 2px;
 }

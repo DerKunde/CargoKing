@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using UnityEditor;
 using UnityEditor.UIElements;
 using UnityEngine;
@@ -25,7 +24,7 @@ namespace CargoKing.Car.Editor
         {
             var root = new VisualElement();
 
-            StyleSheet styleSheet = LoadStyleSheet();
+            StyleSheet styleSheet = ProfileGraphs.LoadStyleSheet(this);
             if (styleSheet != null)
             {
                 root.styleSheets.Add(styleSheet);
@@ -34,21 +33,21 @@ namespace CargoKing.Car.Editor
             InspectorElement.FillDefaultInspector(root, serializedObject, this);
 
             var preview = new VisualElement();
-            preview.AddToClassList("tire-preview");
+            preview.AddToClassList("profile-preview");
 
-            preview.Add(CreateLabel("Longitudinal: force per load over slip ratio, 0 - 100 %", "tire-preview-header"));
+            preview.Add(CreateLabel("Longitudinal: force per load over slip ratio, 0 - 100 %", "profile-preview-header"));
             longitudinalGraph = new TireCurveGraph();
             preview.Add(longitudinalGraph);
-            longitudinalPeakLabel = CreateLabel(string.Empty, "tire-preview-caption");
+            longitudinalPeakLabel = CreateLabel(string.Empty, "profile-preview-caption");
             preview.Add(longitudinalPeakLabel);
 
-            preview.Add(CreateLabel("Lateral: force per load over slip angle, 0 - 30°", "tire-preview-header"));
+            preview.Add(CreateLabel("Lateral: force per load over slip angle, 0 - 30°", "profile-preview-header"));
             lateralGraph = new TireCurveGraph();
             preview.Add(lateralGraph);
-            lateralPeakLabel = CreateLabel(string.Empty, "tire-preview-caption");
+            lateralPeakLabel = CreateLabel(string.Empty, "profile-preview-caption");
             preview.Add(lateralPeakLabel);
 
-            preview.Add(CreateLabel("Bold: nominal load. Faint: 0.5 x and 1.5 x nominal load. Marker: the peak combined slip is normalised with.", "tire-preview-legend"));
+            preview.Add(CreateLabel("Bold: nominal load. Faint: 0.5 x and 1.5 x nominal load. Marker: the peak combined slip is normalised with.", "profile-preview-legend"));
 
             warnings = new VisualElement();
             preview.Add(warnings);
@@ -129,15 +128,6 @@ namespace CargoKing.Car.Editor
             label.AddToClassList(className);
             return label;
         }
-
-        /// <summary>The stylesheet next to this script, found through the script's own asset path so a move keeps it working.</summary>
-        private StyleSheet LoadStyleSheet()
-        {
-            string scriptPath = AssetDatabase.GetAssetPath(MonoScript.FromScriptableObject(this));
-            return string.IsNullOrEmpty(scriptPath)
-                ? null
-                : AssetDatabase.LoadAssetAtPath<StyleSheet>(Path.ChangeExtension(scriptPath, ".uss"));
-        }
     }
 
     /// <summary>
@@ -150,7 +140,6 @@ namespace CargoKing.Car.Editor
 
         // Faint ones first so the nominal curve draws on top.
         private static readonly float[] LoadMultipliers = { 0.5f, 1.5f, 1f };
-        private static readonly Color PeakColor = new Color(0.91f, 0.64f, 0.24f);
 
         private PacejkaCurve curve;
         private float range = 1f;
@@ -161,7 +150,7 @@ namespace CargoKing.Car.Editor
 
         public TireCurveGraph()
         {
-            AddToClassList("tire-graph");
+            AddToClassList("profile-graph");
             generateVisualContent += Draw;
         }
 
@@ -208,7 +197,7 @@ namespace CargoKing.Car.Editor
             Color ink = resolvedStyle.color;
 
             painter.lineWidth = 1f;
-            painter.strokeColor = WithAlpha(ink, 0.15f);
+            painter.strokeColor = ProfileGraphs.WithAlpha(ink, 0.15f);
             for (float mu = 0.2f; mu < yMax; mu += 0.2f)
             {
                 painter.BeginPath();
@@ -223,7 +212,7 @@ namespace CargoKing.Car.Editor
                 float factor = LoadFactor(multiplier);
 
                 painter.lineWidth = nominal ? 2f : 1f;
-                painter.strokeColor = nominal ? ink : WithAlpha(ink, 0.35f);
+                painter.strokeColor = nominal ? ink : ProfileGraphs.WithAlpha(ink, 0.35f);
                 painter.lineJoin = LineJoin.Round;
                 painter.BeginPath();
                 painter.MoveTo(ToPoint(0f, 0f));
@@ -240,23 +229,17 @@ namespace CargoKing.Car.Editor
                 Vector2 top = ToPoint(peak, TireMath.MagicFormula(peak, curve));
 
                 painter.lineWidth = 1f;
-                painter.strokeColor = PeakColor;
+                painter.strokeColor = ProfileGraphs.PeakColor;
                 painter.BeginPath();
                 painter.MoveTo(new Vector2(top.x, height));
                 painter.LineTo(top);
                 painter.Stroke();
 
-                painter.fillColor = PeakColor;
+                painter.fillColor = ProfileGraphs.PeakColor;
                 painter.BeginPath();
                 painter.Arc(top, 3.5f, Angle.Degrees(0f), Angle.Degrees(360f));
                 painter.Fill();
             }
-        }
-
-        private static Color WithAlpha(Color color, float alpha)
-        {
-            color.a *= alpha;
-            return color;
         }
     }
 }
