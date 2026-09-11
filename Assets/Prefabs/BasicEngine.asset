@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5ab8a7ffe5bc76a49be882ac4e5f342f, type: 3}
+  m_Name: BasicEngine
+  m_EditorClassIdentifier: Assembly-CSharp::CargoKing.Car.EngineProfile
+  torque:
+    torqueAtIdle: 31
+    peakTorque: 100.3
+    peakRpm: 2675
+    torqueAtMaxRpm: 72
+    riseShape: 1.56
+    fallShape: 4.32
+  idleRevolutions: 1000
+  maxRevolutions: 6000
+  stallRpm: 600
+  revLimiterFadeRange: 300
+  engineInertia: 0.15
+  engineFrictionTorque: 30
+  idleGovernorGain: 0.05

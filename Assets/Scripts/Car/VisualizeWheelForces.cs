@@ -35,8 +35,8 @@ namespace CargoKing.Car
         public Color lateralAxisColor = Color.cyan;
         public Color rollDirectionColor = Color.blue;
         public Color tireRollForceColor = new Color(1f, 0.55f, 0.1f);
-        // Different colour while the force is capped by the anti-reversal clamp rather than
-        // by grip - so exactly in the last metres before standstill.
+        // Different colour while a stability cap rather than the Pacejka curve sets the force -
+        // near standstill, where the tire behaves as it did before the Pacejka model.
         public Color tireRollForceClampedColor = Color.yellow;
         public Color tireSlipForceColor = Color.red;
         public Color tireForceColor = Color.magenta;

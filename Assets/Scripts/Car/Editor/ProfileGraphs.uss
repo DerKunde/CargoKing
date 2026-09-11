@@ -1,0 +1,31 @@
+.profile-preview {
+    margin-top: 8px;
+}
+
+.profile-preview-header {
+    -unity-font-style: bold;
+    margin-top: 6px;
+}
+
+.profile-graph {
+    height: 140px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    background-color: rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+}
+
+.profile-preview-caption {
+    white-space: normal;
+}
+
+.profile-preview-legend {
+    white-space: normal;
+    margin-top: 6px;
+    opacity: 0.7;
+}
+
+.profile-live {
+    white-space: normal;
+    margin-top: 2px;
+}
