@@ -13,6 +13,25 @@ namespace CargoKing.Car.Editor
             ? VehicleLiveSampler.CurrentCar
             : Object.FindFirstObjectByType<CarController>();
 
+        /// <summary>
+        /// The car's engine profile as the previews should see it: the Vehicle Tuning window's
+        /// working copy when there is one, so unsaved edits show up here too.
+        /// </summary>
+        public static EngineProfile EngineOf(CarController car)
+        {
+            return car != null && car.carEngine != null
+                ? ProfileWorkingCopies.instance.CopyIfAny(car.carEngine.engineProfile)
+                : null;
+        }
+
+        /// <summary>The car's gearbox profile, like <see cref="EngineOf"/>.</summary>
+        public static GearboxProfile GearboxOf(CarController car)
+        {
+            return car != null && car.carEngine != null
+                ? ProfileWorkingCopies.instance.CopyIfAny(car.carEngine.gearboxProfile)
+                : null;
+        }
+
         /// <summary>Radius of the driven (rear) wheels, m; null without a car or wheel.</summary>
         public static float? WheelRadiusOf(CarController car)
         {

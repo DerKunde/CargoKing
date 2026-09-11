@@ -61,7 +61,7 @@ namespace CargoKing.Car.Editor
         {
             var profile = (GearboxProfile)target;
             CarController car = TuningContext.Car;
-            EngineProfile engine = car != null && car.carEngine != null ? car.carEngine.engineProfile : null;
+            EngineProfile engine = TuningContext.EngineOf(car);
             float? carRadius = TuningContext.WheelRadiusOf(car);
             float radius = carRadius ?? FallbackWheelRadius;
             float maxRpm = engine != null ? Mathf.Max(engine.maxRevolutions, 1f) : FallbackMaxRpm;

@@ -129,7 +129,7 @@ namespace CargoKing.Car.Editor
 
         private void RefreshDrive(EngineProfile profile, CarController car)
         {
-            GearboxProfile gearbox = car != null && car.carEngine != null ? car.carEngine.gearboxProfile : null;
+            GearboxProfile gearbox = TuningContext.GearboxOf(car);
             driveGraph.ClearCurves();
 
             if (gearbox == null || gearbox.GearCount == 0)
