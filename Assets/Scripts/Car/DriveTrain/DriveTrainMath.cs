@@ -45,22 +45,6 @@ namespace CargoKing.Car
             return angularVelocityRadPerSec * 60f / (2f * Mathf.PI);
         }
 
-        /// <summary>
-        /// Clutch plate torque: proportional to the RPM gap between engine and driveline, capped
-        /// by the plate's maximum friction torque. Positive means torque flows from engine to
-        /// driveline (engine turning faster than the wheels expect).
-        /// </summary>
-        public static float ClutchTorque(float engineRpm, float wheelRpmGeared, float clutchStiffness, float maxClutchTorque)
-        {
-            float rawTorque = clutchStiffness * (engineRpm - wheelRpmGeared);
-            return Mathf.Clamp(rawTorque, -maxClutchTorque, maxClutchTorque);
-        }
-
-        public static bool IsLocked(float engineRpm, float wheelRpmGeared, float lockEpsilonRpm)
-        {
-            return Mathf.Abs(engineRpm - wheelRpmGeared) <= lockEpsilonRpm;
-        }
-
         public static bool IsStalled(float engineRpm, float stallRpm)
         {
             return engineRpm < stallRpm;

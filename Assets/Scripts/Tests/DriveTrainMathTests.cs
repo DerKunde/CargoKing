@@ -8,39 +8,6 @@ namespace CargoKing.Tests
     public class DriveTrainMathTests
     {
         [Test]
-        public void ClutchTorque_WithinCapacity_IsProportionalToRpmGap()
-        {
-            float torque = DriveTrainMath.ClutchTorque(engineRpm: 1500f, wheelRpmGeared: 1000f, clutchStiffness: 0.2f, maxClutchTorque: 220f);
-            Assert.AreEqual(100f, torque, 0.01f);
-        }
-
-        [Test]
-        public void ClutchTorque_LargeRpmGap_ClampsToMaxTorque()
-        {
-            float torque = DriveTrainMath.ClutchTorque(engineRpm: 4000f, wheelRpmGeared: 0f, clutchStiffness: 0.2f, maxClutchTorque: 220f);
-            Assert.AreEqual(220f, torque, 0.01f);
-        }
-
-        [Test]
-        public void ClutchTorque_EngineSlowerThanWheel_IsNegative()
-        {
-            float torque = DriveTrainMath.ClutchTorque(engineRpm: 1000f, wheelRpmGeared: 1500f, clutchStiffness: 0.2f, maxClutchTorque: 220f);
-            Assert.AreEqual(-100f, torque, 0.01f);
-        }
-
-        [Test]
-        public void IsLocked_WithinEpsilon_ReturnsTrue()
-        {
-            Assert.IsTrue(DriveTrainMath.IsLocked(2010f, 2000f, lockEpsilonRpm: 50f));
-        }
-
-        [Test]
-        public void IsLocked_OutsideEpsilon_ReturnsFalse()
-        {
-            Assert.IsFalse(DriveTrainMath.IsLocked(2200f, 2000f, lockEpsilonRpm: 50f));
-        }
-
-        [Test]
         public void IsStalled_BelowStallRpm_ReturnsTrue()
         {
             Assert.IsTrue(DriveTrainMath.IsStalled(500f, stallRpm: 600f));
