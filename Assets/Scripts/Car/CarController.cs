@@ -251,7 +251,7 @@ namespace CargoKing.Car
         private void PlotDrivetrain()
         {
             DebugGraph.Plot("Throttle", throttleInput, 0f, 1f);
-            DebugGraph.Plot("Drivetrain", "Engine RPM", carEngine.revolutionsPerMinute, 0f, carEngine.maxRevolutions);
+            DebugGraph.Plot("Drivetrain", "Engine RPM", carEngine.revolutionsPerMinute, 0f, carEngine.MaxRevolutions);
             DebugGraph.Plot("Drivetrain", "Clutch Reaction Torque", carEngine.debugClutchReactionTorque, -230f, 230f);
             DebugGraph.Plot("Drivetrain", "Combustion Torque", carEngine.debugCombustionTorque, -50f, 300f);
             DebugGraph.Plot("Drivetrain", "Friction Torque", carEngine.debugFrictionTorque, 0f, 50f);

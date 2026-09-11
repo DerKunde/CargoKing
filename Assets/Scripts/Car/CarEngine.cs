@@ -5,15 +5,24 @@ namespace CargoKing.Car
 {
     public class CarEngine : MonoBehaviour
     {
-        public AnimationCurve torqueCurve;
-        [Header("Gearbox")]
-        public float[] gears = {3.2f, 1.9f, 1.3f, 1.0f, 0.8f};
-        public float reverseRation = 3.5f;
-        public float CurrentGearRation => currentGear == 0 ? reverseRation : gears[currentGear -1];
+        [Header("Profiles")]
+        [Tooltip("Torque curve, rpm range, rotating mass and losses. Left empty, built-in defaults are used and a warning is logged.")]
+        public EngineProfile engineProfile;
+
+        [Tooltip("Gear ratios, final drive and efficiency. Left empty, built-in defaults are used and a warning is logged.")]
+        public GearboxProfile gearboxProfile;
+
+        /// <summary>Ratio of the engaged gear; reverse is gear 0.</summary>
+        public float CurrentGearRatio => gearboxProfile.Ratio(currentGear);
         public float DriveDirection => currentGear == 0 ? -1f : 1f;
-        public float maxReverseShiftSpeed = 1f;
-        public float axleRatio = 4f;
-        public float efficiency = 0.85f;
+
+        /// <summary>Signed: gear, final drive and direction of travel in one number.</summary>
+        public float TotalRatio => CurrentGearRatio * gearboxProfile.axleRatio * DriveDirection;
+
+        public float Efficiency => gearboxProfile.efficiency;
+        public float MaxRevolutions => engineProfile.maxRevolutions;
+        public float MaxReverseShiftSpeed => gearboxProfile.maxReverseShiftSpeed;
+        public int GearCount => gearboxProfile.GearCount;
 
         // Unused since the drivetrain rework (2026-09-08): engine RPM and drive torque are now
         // derived from the driven wheels' own angular velocity (Suspension.wheelAngularVelocity),
@@ -22,44 +31,10 @@ namespace CargoKing.Car
         // wheel prefab's actual radius) rather than silently removing it.
         public float tireRadius = 0.31f;
 
-        public float idleRevolutions = 1000f;
-        public float maxRevolutions = 6000f;
-
         // Unused since removing the artificial RPM/s rate cap from DriveTrainMath.IntegrateEngineRpm:
         // it created a two-phase (torque-limited, then suddenly capped) response with no physical
         // basis. Left in place rather than deleted, per project convention on dead fields.
         public float rpmChangeSpeed = 3000f;
-
-        [Header("Engine (rotating mass)")]
-        public float engineInertia = 0.15f;
-
-        /// <summary>
-        /// Engine friction and pumping loss at max RPM, N*m, falling off towards standstill along
-        /// the shape in DriveTrainMath.EngineFrictionTorque. Always opposes engine rotation,
-        /// throttle or not - without it a declutched, off-throttle engine is a frictionless
-        /// flywheel and never returns to idle.
-        ///
-        /// The default is the real closed-throttle drag of a 1.2 l naturally aspirated four
-        /// (FMEP + PMEP, roughly 3.2 bar at 6000 rpm), cross-checked against how fast such an
-        /// engine actually drops from 4000 rpm to idle. It used to sit at three times this, for
-        /// two reasons that have both since been dealt with: the torque curve was being charged
-        /// for friction twice (see DriveTrainMath.CombustionTorque), and idle was held by a
-        /// passive friction balance that needed a steep curve to settle at all (see
-        /// DriveTrainMath.IdleGovernorTorque).
-        ///
-        /// This is not the full engine-braking feature (GitHub #9, still deferred - that one
-        /// feeds drag into the wheels while the clutch is closed); this only acts on the engine's
-        /// own RPM.
-        /// </summary>
-        public float engineFrictionTorque = 30f;
-
-        /// <summary>
-        /// Idle circuit gain, N*m per RPM below the idle target. Sets how quickly idle settles:
-        /// 0.05 brings the engine onto the target in about a second from just above it, and gives
-        /// the circuit some 35 N*m of authority at the stall threshold - enough to hold a clean
-        /// idle, nowhere near enough to save a dumped clutch.
-        /// </summary>
-        public float idleGovernorGain = 0.05f;
 
         [Header("Clutch")]
 
@@ -87,7 +62,6 @@ namespace CargoKing.Car
         // state left to detect with an epsilon check. Left in place rather than deleted.
         public float lockEpsilonRpm = 50f;
 
-        public float stallRpm = 600f;
         public float restartDelay = 1f;
 
         // Unused since the clutch became a solved constraint (see Tick): a gear shift changes the
@@ -95,9 +69,6 @@ namespace CargoKing.Car
         // two sides are back together - no special-cased blend window needed. Left in place rather
         // than deleted.
         public float gearShiftClutchBlendDuration = 0.2f;
-
-        [Header("Drehzahlbegrenzer")]
-        public float revLimiterFadeRange = 300f;
 
         [Header("Calculated Values !!! Do not change !!!")]
         public float revolutionsPerMinute;
@@ -120,20 +91,52 @@ namespace CargoKing.Car
         // Below this the car counts as standing and the launch assist takes over again.
         private const float LaunchStandstillKmh = 1f;
 
-        private float restartTimer = -1f;
+        // Keeps a fade range that is being typed in from dividing by zero.
+        private const float MinRevLimiterFadeRange = 1f;
 
-        private int rpmDivisor = 10000;
-        private int torqueFactor = 1000;
+        private static EngineProfile defaultEngineProfile;
+        private static GearboxProfile defaultGearboxProfile;
+
+        private float restartTimer = -1f;
 
         private void Awake()
         {
-            revolutionsPerMinute = idleRevolutions;
+            // Keeps the car driveable before the prefab has profiles assigned, as Suspension does
+            // for its tire profile, rather than throwing on the first physics step.
+            if (engineProfile == null)
+            {
+                if (defaultEngineProfile == null)
+                {
+                    defaultEngineProfile = ScriptableObject.CreateInstance<EngineProfile>();
+                    defaultEngineProfile.hideFlags = HideFlags.DontSave;
+                }
+
+                engineProfile = defaultEngineProfile;
+                Debug.LogWarning($"{name}: no EngineProfile assigned, using built-in defaults. Create one via Create > CargoKing > Engine Profile.", this);
+            }
+
+            if (gearboxProfile == null)
+            {
+                if (defaultGearboxProfile == null)
+                {
+                    defaultGearboxProfile = ScriptableObject.CreateInstance<GearboxProfile>();
+                    defaultGearboxProfile.hideFlags = HideFlags.DontSave;
+                }
+
+                gearboxProfile = defaultGearboxProfile;
+                Debug.LogWarning($"{name}: no GearboxProfile assigned, using built-in defaults. Create one via Create > CargoKing > Gearbox Profile.", this);
+            }
+
+            revolutionsPerMinute = engineProfile.idleRevolutions;
         }
 
         /// <summary>
         /// Advances the engine and clutch by one physics step and returns the torque (N*m) the
         /// driveline should apply at the gearbox output - CarController splits this between the
         /// driven wheels and hands it to Suspension.driveTorque.
+        ///
+        /// Reads both profiles on every call, so changes made to them while driving apply on the
+        /// next step.
         ///
         /// The clutch is not a Held/Slipping/Locked state machine and not a spring either. Engaged,
         /// it is solved as a rigid constraint: DriveTrainMath.LockedClutchTorque returns the torque
@@ -152,7 +155,16 @@ namespace CargoKing.Car
         /// </summary>
         public float Tick(float throttle, in DrivelineLoad driveline, bool clutchHeld, bool restartRequested, float deltaTime)
         {
+            EngineProfile engine = engineProfile;
+            GearboxProfile gearbox = gearboxProfile;
+
             isOnGasPadle = throttle > 0f;
+
+            // Gears removed from the profile while driving: carry on in the highest one left.
+            if (currentGear > gearbox.GearCount)
+            {
+                currentGear = gearbox.GearCount;
+            }
 
             if (HandleStallAndRestart(restartRequested, deltaTime))
             {
@@ -165,20 +177,21 @@ namespace CargoKing.Car
 
             // Signed: gear, final drive and direction of travel in one number, so reverse needs no
             // separate handling anywhere below.
-            float totalRatio = CurrentGearRation * axleRatio * DriveDirection;
+            float totalRatio = TotalRatio;
             gearboxRevolutions = DriveTrainMath.AngularVelocityToRpm(driveline.AngularVelocity) * totalRatio;
 
             // Friction is taken off the indicated torque here AND added back into it inside
             // CombustionTorque, which is not redundant: it means full throttle nets out to exactly
             // the torque curve (a curve is brake torque, already net of losses) while friction
             // still governs idle and over-run. See DriveTrainMath.CombustionTorque.
-            float friction = DriveTrainMath.EngineFrictionTorque(revolutionsPerMinute, maxRevolutions, engineFrictionTorque);
+            float friction = DriveTrainMath.EngineFrictionTorque(revolutionsPerMinute, engine.maxRevolutions, engine.engineFrictionTorque);
             float governorTorque = DriveTrainMath.IdleGovernorTorque(
-                revolutionsPerMinute, idleRevolutions, maxRevolutions, engineFrictionTorque, idleGovernorGain);
+                revolutionsPerMinute, engine.idleRevolutions, engine.maxRevolutions, engine.engineFrictionTorque, engine.idleGovernorGain);
             float combustionTorque = DriveTrainMath.CombustionTorque(
-                GetMaxTorqueForRPM(revolutionsPerMinute), friction, governorTorque, throttle);
+                engine.TorqueAt(revolutionsPerMinute), friction, governorTorque, throttle);
 
-            revLimiterFactor = Mathf.Clamp01((maxRevolutions - revolutionsPerMinute) / revLimiterFadeRange);
+            revLimiterFactor = Mathf.Clamp01(
+                (engine.maxRevolutions - revolutionsPerMinute) / Mathf.Max(MinRevLimiterFadeRange, engine.revLimiterFadeRange));
 
             float engineNetTorque = combustionTorque * revLimiterFactor - friction;
 
@@ -187,10 +200,10 @@ namespace CargoKing.Car
                 driveline.AngularVelocity,
                 engineNetTorque,
                 driveline.ExternalTorque,
-                engineInertia,
+                engine.engineInertia,
                 driveline.Inertia,
                 totalRatio,
-                efficiency,
+                gearbox.efficiency,
                 deltaTime);
 
             float clutchCapacity = clutchHeld
@@ -215,18 +228,18 @@ namespace CargoKing.Car
             debugClutchCapacity = clutchCapacity;
 
             revolutionsPerMinute = Mathf.Clamp(
-                DriveTrainMath.IntegrateEngineRpm(revolutionsPerMinute, engineNetTorque, clutchReactionTorque, engineInertia, deltaTime),
+                DriveTrainMath.IntegrateEngineRpm(revolutionsPerMinute, engineNetTorque, clutchReactionTorque, engine.engineInertia, deltaTime),
                 0f,
-                maxRevolutions);
+                engine.maxRevolutions);
 
-            if (DriveTrainMath.IsStalled(revolutionsPerMinute, stallRpm))
+            if (DriveTrainMath.IsStalled(revolutionsPerMinute, engine.stallRpm))
             {
                 engineStalled = true;
                 revolutionsPerMinute = 0f;
                 return 0f;
             }
 
-            return clutchReactionTorque * totalRatio * efficiency;
+            return clutchReactionTorque * totalRatio * gearbox.efficiency;
         }
 
         private bool HandleStallAndRestart(bool restartRequested, float deltaTime)
@@ -250,38 +263,28 @@ namespace CargoKing.Car
             {
                 engineStalled = false;
                 restartTimer = -1f;
-                revolutionsPerMinute = idleRevolutions;
+                revolutionsPerMinute = engineProfile.idleRevolutions;
                 return false;
             }
 
             return true;
         }
 
-        private float GetMaxTorqueForRPM(float currentRPM)
-        {
-            return LookUpOnTorqueCurve(torqueCurve, currentRPM);
-        }
-
         public bool ChangeGear(GearShift direction, float currentSpeedMS)
         {
             int previousGear = currentGear;
 
-            if(direction == GearShift.Up && currentGear < gears.Length)
+            if (direction == GearShift.Up && currentGear < GearCount)
             {
                 currentGear += 1;
             }
-            if(direction == GearShift.Down && currentGear > 0)
+            if (direction == GearShift.Down && currentGear > 0)
             {
-                if(currentGear == 1 && Mathf.Abs(currentSpeedMS) > maxReverseShiftSpeed) return false;
+                if (currentGear == 1 && Mathf.Abs(currentSpeedMS) > MaxReverseShiftSpeed) return false;
                 currentGear -= 1;
             }
 
             return currentGear != previousGear;
-        }
-
-        private float LookUpOnTorqueCurve(AnimationCurve curve, float xValueToLookAt)
-        {
-            return curve.Evaluate(xValueToLookAt / rpmDivisor) * torqueFactor;
         }
     }
 }

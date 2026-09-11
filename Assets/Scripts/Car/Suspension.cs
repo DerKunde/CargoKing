@@ -163,6 +163,15 @@ namespace CargoKing.Car
         /// </summary>
         public float ExtensionRatio => extensionRatio;
 
+        /// <summary>Load on the tire in the last physics step, N. Zero in the air.</summary>
+        public float NormalLoad => normalForce;
+
+        /// <summary>
+        /// Wheel radius, m, from the wheel mesh's scale - the same number Awake stores, so previews
+        /// outside Play Mode get it too.
+        /// </summary>
+        public float WheelRadius => wheelMesh != null ? wheelMesh.localScale.z / 2f : wheelRadius;
+
         /// <summary>Brake plus rolling resistance on the wheel's spin, N*m. Rolling resistance is zero in the air.</summary>
         private float FrictionTorque => (brakeInput * maxBrakeForce + rollingResistanceCoefficient * normalForce) * wheelRadius;
 
@@ -194,7 +203,7 @@ namespace CargoKing.Car
         {
             if (wheelMesh != null)
             {
-                wheelRadius = wheelMesh.localScale.z / 2; // Unit in meters
+                wheelRadius = WheelRadius; // From the wheel mesh, in meters
                 tireMass = carBody.mass / 4;
                 // Solid-disk approximation using the wheel's own assembly mass, not tireMass.
                 wheelInertia = 0.5f * wheelAssemblyMass * wheelRadius * wheelRadius;

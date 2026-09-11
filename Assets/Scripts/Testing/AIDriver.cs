@@ -30,7 +30,7 @@ namespace CargoKing.Testing
         /// <summary>Below this speed a launch sequence may (re-)start.</summary>
         private const float LaunchStandstillSpeed = 0.1f;
 
-        /// <summary>Shift only below this fraction of maxReverseShiftSpeed, so the gearbox does not refuse.</summary>
+        /// <summary>Shift only below this fraction of MaxReverseShiftSpeed, so the gearbox does not refuse.</summary>
         private const float ShiftSpeedSafety = 0.8f;
 
         private CarController carController;
@@ -237,12 +237,12 @@ namespace CargoKing.Testing
 
         /// <summary>
         /// Full brake, plus one shift towards the wanted gear once slow enough. The gearbox
-        /// refuses to engage reverse above maxReverseShiftSpeed.
+        /// refuses to engage reverse above CarEngine.MaxReverseShiftSpeed.
         /// </summary>
         private void StopForGearChange(int targetGear)
         {
             int currentGear = carController.carEngine.currentGear;
-            bool slowEnough = carController.CarSpeedInMS() < carController.carEngine.maxReverseShiftSpeed * ShiftSpeedSafety;
+            bool slowEnough = carController.CarSpeedInMS() < carController.carEngine.MaxReverseShiftSpeed * ShiftSpeedSafety;
 
             GearShift shift = GearShift.None;
             if (slowEnough && currentGear != targetGear)
