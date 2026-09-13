@@ -6,8 +6,8 @@ using UnityEngine.Splines;
 namespace CargoKing.Streets
 {
     /// <summary>
-    /// One stretch of road. Holds the spline that defines its course and rebuilds its mesh from a
-    /// tile that is repeated along that spline.
+    /// One stretch of road. Holds the spline that defines its course and rebuilds its mesh from the
+    /// tile of its <see cref="StreetProfile"/>, repeated along that spline.
     ///
     /// The generated mesh is never serialised - it is rebuilt from the tile and the spline whenever
     /// the component wakes up or the spline changes. That keeps the scene file small and means the
@@ -19,25 +19,12 @@ namespace CargoKing.Streets
     [RequireComponent(typeof(MeshCollider))]
     public class StreetSegment : MonoBehaviour
     {
-        [Tooltip("Tile that is repeated along the spline. Needs Read/Write enabled in its import settings.")]
-        public Mesh sourceMesh;
-
-        [Tooltip("Local axis of the tile that points along the direction of travel.")]
-        public StreetMeshAxis forwardAxis = StreetMeshAxis.X;
-
-        [Tooltip("Nominal length of one tile in metres. 0 measures it from the mesh itself.")]
-        [Min(0f)]
-        public float tileLength;
+        [Tooltip("Class of road this segment belongs to. Supplies tile, material, width, speed limit "
+            + "and traffic density.")]
+        public StreetProfile profile;
 
         [Tooltip("Feed the generated mesh to a MeshCollider so vehicles can drive on it.")]
         public bool generateCollider = true;
-
-        [Tooltip("Width of the carriageway in metres - the driveable part, without verges. Two lanes share it.")]
-        [Min(0f)]
-        public float roadWidth = 7f;
-
-        [Tooltip("Class of road this segment belongs to. Supplies the speed limit and traffic density.")]
-        public StreetProfile profile;
 
         [Tooltip("Speed limit for this segment alone, in km/h. 0 takes the profile's limit.")]
         [Min(0f)]
@@ -73,8 +60,12 @@ namespace CargoKing.Streets
         private SplineContainer splineContainer;
         private MeshFilter meshFilter;
         private MeshCollider meshCollider;
+        private MeshRenderer meshRenderer;
         private Mesh generatedMesh;
         private bool isDirty = true;
+
+        private StreetProfile builtProfile;
+        private int builtProfileVersion = -1;
 
         private float minimumRadius = float.PositiveInfinity;
         private Vector3 tightestLocalPosition;
@@ -102,9 +93,39 @@ namespace CargoKing.Streets
             }
         }
 
+        /// <summary>Width of the carriageway in metres, from the profile. 0 without one.</summary>
+        public float RoadWidth => profile != null ? profile.roadWidth : 0f;
+
+        /// <summary>
+        /// Why this segment cannot build a mesh, in words an author can act on, or null when it can.
+        /// </summary>
+        public string TileProblem
+        {
+            get
+            {
+                if (profile == null)
+                {
+                    return "No street profile. Assign one, or set a default profile in the Street Kit.";
+                }
+
+                if (profile.tileMesh == null)
+                {
+                    return $"Street profile '{profile.name}' has no tile mesh.";
+                }
+
+                if (!profile.tileMesh.isReadable)
+                {
+                    return $"'{profile.tileMesh.name}' cannot be read. Enable Read/Write in its model "
+                        + "import settings.";
+                }
+
+                return null;
+            }
+        }
+
         /// <summary>Radius below which this segment reports a curve as too tight, in metres.</summary>
         public float WarningRadius =>
-            curvatureWarningRadius > 0f ? curvatureWarningRadius : roadWidth * WarningRadiusPerWidth;
+            curvatureWarningRadius > 0f ? curvatureWarningRadius : RoadWidth * WarningRadiusPerWidth;
 
         /// <summary>
         /// The two lanes of this segment, one each way. Rebuilt with the mesh and never serialised.
@@ -125,6 +146,7 @@ namespace CargoKing.Streets
             splineContainer = GetComponent<SplineContainer>();
             meshFilter = GetComponent<MeshFilter>();
             meshCollider = GetComponent<MeshCollider>();
+            meshRenderer = GetComponent<MeshRenderer>();
 
             Spline.Changed += OnSplineChanged;
             isDirty = true;
@@ -158,6 +180,13 @@ namespace CargoKing.Streets
             // callback of its own. The check costs two transform lookups and writes nothing unless the
             // knot has actually drifted from its socket.
             if (ApplyConnections())
+            {
+                isDirty = true;
+            }
+
+            // A profile is an asset and raises nothing on the segments using it, so they compare its
+            // edit counter instead. One integer per frame.
+            if (profile != builtProfile || (profile != null && profile.Version != builtProfileVersion))
             {
                 isDirty = true;
             }
@@ -394,13 +423,15 @@ namespace CargoKing.Streets
         }
 
         /// <summary>
-        /// Regenerates the mesh from the current tile and spline. Safe to call at any time; the
+        /// Regenerates the mesh from the profile's tile and the spline. Safe to call at any time; the
         /// component calls it by itself whenever something it depends on changed.
         /// </summary>
         public void Rebuild()
         {
             // Cleared first, so a build that fails reports once per change instead of once per frame.
             isDirty = false;
+            builtProfile = profile;
+            builtProfileVersion = profile != null ? profile.Version : -1;
 
             if (splineContainer == null || meshFilter == null)
             {
@@ -412,17 +443,16 @@ namespace CargoKing.Streets
             ApplyConnections();
             MeasureCurve();
 
-            if (sourceMesh == null)
+            string problem = TileProblem;
+            if (problem != null)
             {
-                Clear();
-                return;
-            }
+                // Only the unreadable tile goes to the console: it is a setting in the import options
+                // nobody would think to look for. A missing profile or tile shows in the inspector.
+                if (profile != null && profile.tileMesh != null)
+                {
+                    Debug.LogWarning(problem, this);
+                }
 
-            if (!sourceMesh.isReadable)
-            {
-                Debug.LogWarning(
-                    $"'{sourceMesh.name}' cannot be read. Enable Read/Write in its model import settings.",
-                    this);
                 Clear();
                 return;
             }
@@ -439,13 +469,15 @@ namespace CargoKing.Streets
                 };
             }
 
-            if (!StreetMeshBuilder.TryBuild(generatedMesh, sourceMesh, splineContainer.Spline, forwardAxis, tileLength))
+            if (!StreetMeshBuilder.TryBuild(
+                    generatedMesh, profile.tileMesh, splineContainer.Spline, profile.forwardAxis, profile.tileLength))
             {
                 Clear();
                 return;
             }
 
             meshFilter.sharedMesh = generatedMesh;
+            ApplyMaterial();
             ApplyCollider();
         }
 
@@ -455,8 +487,10 @@ namespace CargoKing.Streets
         /// </summary>
         private void MeasureCurve()
         {
-            tileSize = StreetMeshBuilder.MeasureTile(sourceMesh, forwardAxis);
-            lanes = StreetLaneBuilder.Build(splineContainer.Spline, roadWidth);
+            tileSize = profile != null
+                ? StreetMeshBuilder.MeasureTile(profile.tileMesh, profile.forwardAxis)
+                : Vector3.zero;
+            lanes = StreetLaneBuilder.Build(splineContainer.Spline, RoadWidth);
             minimumRadius = StreetCurvature.MinimumRadius(splineContainer.Spline, out float tightestT);
 
             if (splineContainer.Spline != null && splineContainer.Spline.Count >= 2)
@@ -476,7 +510,7 @@ namespace CargoKing.Streets
             }
 
             Gizmos.color = new Color(1f, 0.55f, 0.1f);
-            Gizmos.DrawWireSphere(TightestPoint, Mathf.Max(0.5f, roadWidth * 0.5f));
+            Gizmos.DrawWireSphere(TightestPoint, Mathf.Max(0.5f, RoadWidth * 0.5f));
         }
 
         private void Clear()
@@ -486,6 +520,15 @@ namespace CargoKing.Streets
             if (meshCollider != null)
             {
                 meshCollider.sharedMesh = null;
+            }
+        }
+
+        private void ApplyMaterial()
+        {
+            // Written only when it differs, so a rebuild does not mark the scene as changed every time.
+            if (meshRenderer != null && profile.material != null && meshRenderer.sharedMaterial != profile.material)
+            {
+                meshRenderer.sharedMaterial = profile.material;
             }
         }
 

@@ -281,9 +281,9 @@ namespace CargoKing.Streets.Editor
 
         private static string ValidateSocket(StreetSegment segment, StreetEnd end, IntersectionSocket socket)
         {
-            if (!Mathf.Approximately(socket.roadWidth, segment.roadWidth))
+            if (!Mathf.Approximately(socket.roadWidth, segment.RoadWidth))
             {
-                return $"The socket is {socket.roadWidth:0.0} m wide, this street {segment.roadWidth:0.0} m. "
+                return $"The socket is {socket.roadWidth:0.0} m wide, this street {segment.RoadWidth:0.0} m. "
                     + "The lanes will not line up at the seam.";
             }
 

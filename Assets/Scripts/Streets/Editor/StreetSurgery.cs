@@ -56,18 +56,17 @@ namespace CargoKing.Streets.Editor
                 return false;
             }
 
-            if (!Mathf.Approximately(dragged.roadWidth, target.roadWidth))
+            if (!Mathf.Approximately(dragged.RoadWidth, target.RoadWidth))
             {
-                problem = $"'{dragged.name}' is {dragged.roadWidth:0.0} m wide and '{target.name}' is "
-                    + $"{target.roadWidth:0.0} m. Streets of different width cannot become one.";
+                problem = $"'{dragged.name}' is {dragged.RoadWidth:0.0} m wide and '{target.name}' is "
+                    + $"{target.RoadWidth:0.0} m. Streets of different width cannot become one.";
                 return false;
             }
 
-            if (dragged.sourceMesh != target.sourceMesh
-                || dragged.forwardAxis != target.forwardAxis
-                || !Mathf.Approximately(dragged.tileLength, target.tileLength))
+            if (dragged.profile != target.profile)
             {
-                problem = $"'{dragged.name}' and '{target.name}' are built from different tiles.";
+                problem = $"'{dragged.name}' and '{target.name}' belong to different street profiles. "
+                    + "Streets of different class cannot become one.";
                 return false;
             }
 
@@ -317,19 +316,11 @@ namespace CargoKing.Streets.Editor
             }
 
             StreetSegment second = secondObject.AddComponent<StreetSegment>();
-            second.roadWidth = segment.roadWidth;
-            second.sourceMesh = segment.sourceMesh;
-            second.forwardAxis = segment.forwardAxis;
-            second.tileLength = segment.tileLength;
+            // The profile carries tile, material and width; the rest belongs to this stretch alone.
+            second.profile = segment.profile;
+            second.speedLimitOverrideKmh = segment.speedLimitOverrideKmh;
             second.generateCollider = segment.generateCollider;
             second.curvatureWarningRadius = segment.curvatureWarningRadius;
-
-            MeshRenderer source = segment.GetComponent<MeshRenderer>();
-            MeshRenderer destination = second.GetComponent<MeshRenderer>();
-            if (source != null && destination != null)
-            {
-                destination.sharedMaterials = source.sharedMaterials;
-            }
 
             // The far end of the road is now the far end of the second half.
             second.endConnection = segment.endConnection;

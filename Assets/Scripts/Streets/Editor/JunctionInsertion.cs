@@ -95,10 +95,10 @@ namespace CargoKing.Streets.Editor
             }
 
             if (alignment.entry != null
-                && !Mathf.Approximately(alignment.entry.roadWidth, segment.roadWidth))
+                && !Mathf.Approximately(alignment.entry.roadWidth, segment.RoadWidth))
             {
                 problem = $"The junction's sockets are {alignment.entry.roadWidth:0.0} m wide and this "
-                    + $"street is {segment.roadWidth:0.0} m. The lanes would not line up.";
+                    + $"street is {segment.RoadWidth:0.0} m. The lanes would not line up.";
                 return false;
             }
 

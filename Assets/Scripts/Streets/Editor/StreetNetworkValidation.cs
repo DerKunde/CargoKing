@@ -123,13 +123,13 @@ namespace CargoKing.Streets.Editor
                 occupancy[connector.socket] = segment;
             }
 
-            if (Mathf.Abs(connector.socket.roadWidth - segment.roadWidth) > WidthTolerance)
+            if (Mathf.Abs(connector.socket.roadWidth - segment.RoadWidth) > WidthTolerance)
             {
                 issues.Add(new StreetNetworkIssue
                 {
                     severity = StreetNetworkIssueSeverity.Error,
                     message =
-                        $"'{segment.name}' is {segment.roadWidth} m wide but socket "
+                        $"'{segment.name}' is {segment.RoadWidth} m wide but socket "
                         + $"'{connector.socket.name}' expects {connector.socket.roadWidth} m. "
                         + "The lanes would miss each other at the seam.",
                     target = segment,

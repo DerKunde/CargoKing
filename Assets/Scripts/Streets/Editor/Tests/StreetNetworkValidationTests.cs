@@ -68,7 +68,6 @@ namespace CargoKing.Streets.Editor.Tests
             socket.roadWidth = 7f;
 
             StreetSegment segment = StreetTestFactory.Create("Road", Vector3.zero, new Vector3(50f, 0f, 0f));
-            segment.roadWidth = 16f;
             segment.startConnection.socket = socket;
 
             bool passed = StreetNetworkValidation.Run(new[] { segment }, new[] { intersection }, issues);

@@ -14,6 +14,35 @@ namespace CargoKing.Streets.Editor.Tests
     internal static class StreetTestFactory
     {
         private static readonly List<GameObject> created = new List<GameObject>();
+        private static readonly List<Object> createdAssets = new List<Object>();
+        private static StreetProfile sharedProfile;
+
+        /// <summary>
+        /// The profile every factory segment starts with: 16 m, no tile. Shared, so two factory
+        /// segments count as the same class of road and can be merged.
+        /// </summary>
+        public static StreetProfile SharedProfile
+        {
+            get
+            {
+                if (sharedProfile == null)
+                {
+                    sharedProfile = Profile(16f);
+                }
+
+                return sharedProfile;
+            }
+        }
+
+        /// <summary>A fresh profile of the given width, taken away again by <see cref="DestroyAll"/>.</summary>
+        public static StreetProfile Profile(float width)
+        {
+            StreetProfile profile = ScriptableObject.CreateInstance<StreetProfile>();
+            profile.name = $"Test Profile {width:0.#} m";
+            profile.roadWidth = width;
+            createdAssets.Add(profile);
+            return profile;
+        }
 
         /// <summary>
         /// A segment whose spline runs through the given points, expressed in its own local space.
@@ -35,9 +64,7 @@ namespace CargoKing.Streets.Editor.Tests
 
             // Added after the container so StreetSegment.OnEnable finds it.
             StreetSegment segment = gameObject.AddComponent<StreetSegment>();
-            segment.roadWidth = 16f;
-            segment.tileLength = 0f;
-            segment.forwardAxis = StreetMeshAxis.X;
+            segment.profile = SharedProfile;
 
             return segment;
         }
@@ -53,6 +80,17 @@ namespace CargoKing.Streets.Editor.Tests
             }
 
             created.Clear();
+
+            for (int index = 0; index < createdAssets.Count; index++)
+            {
+                if (createdAssets[index] != null)
+                {
+                    Object.DestroyImmediate(createdAssets[index]);
+                }
+            }
+
+            createdAssets.Clear();
+            sharedProfile = null;
         }
     }
 }

@@ -123,7 +123,8 @@ namespace CargoKing.Streets.Editor
                 builder.Append(segment.GetInstanceID()).Append('|');
                 Append(builder, segment.transform.position);
                 Append(builder, segment.transform.eulerAngles);
-                Append(builder, segment.roadWidth);
+                builder.Append(segment.profile != null ? segment.profile.GetInstanceID() : 0).Append('|');
+                Append(builder, segment.RoadWidth);
                 Append(builder, segment.SpeedLimit);
 
                 SplineContainer container = segment.GetComponent<SplineContainer>();

@@ -9,9 +9,9 @@ namespace CargoKing.Streets.Editor
     /// <summary>
     /// Pulls a new street out of a free intersection socket.
     ///
-    /// The socket already says where a road leaves and how wide it is, so the gesture only has to
-    /// supply the far end. The tile comes from a street that already exists, because a network built
-    /// from one kit should not need the same three fields typed in again for every arm.
+    /// The socket already says where a road leaves, so the gesture only has to supply the far end.
+    /// The class of road comes from a street already docked to the same intersection, or else from
+    /// the Street Kit's default profile.
     ///
     /// The drag only makes the first stretch. Shaping the rest of the road is Unity's job, so the
     /// gesture ends by handing over to its draw tool rather than growing a second one here.
@@ -220,8 +220,7 @@ namespace CargoKing.Streets.Editor
             BuildSpline(Undo.AddComponent<SplineContainer>(street), street.transform, end);
 
             StreetSegment segment = Undo.AddComponent<StreetSegment>(street);
-            segment.roadWidth = socket.roadWidth;
-            CopyTile(FindTemplate(socket, segments), segment);
+            segment.profile = StreetProfileChoice.ForSocket(socket, segments, StreetKit.DefaultProfile());
 
             StreetSnapping.Connect(
                 segment,
@@ -273,75 +272,6 @@ namespace CargoKing.Streets.Editor
                     float3.zero,
                     new quaternion(rotation.x, rotation.y, rotation.z, rotation.w)),
                 TangentMode.AutoSmooth);
-        }
-
-        /// <summary>
-        /// The street whose tile the new one is built from: one already docked to this intersection
-        /// first, because the arms of one junction come from the same kit, then any street in the
-        /// scene. Null when there is no street to copy from yet - the segment is then left without a
-        /// tile and shows nothing until one is assigned.
-        /// </summary>
-        private static StreetSegment FindTemplate(IntersectionSocket socket, StreetSegment[] segments)
-        {
-            Intersection intersection = socket.Owner;
-
-            if (intersection != null)
-            {
-                for (int index = 0; index < segments.Length; index++)
-                {
-                    StreetSegment segment = segments[index];
-                    if (segment.sourceMesh != null && DocksTo(segment, intersection))
-                    {
-                        return segment;
-                    }
-                }
-            }
-
-            for (int index = 0; index < segments.Length; index++)
-            {
-                if (segments[index].sourceMesh != null)
-                {
-                    return segments[index];
-                }
-            }
-
-            return null;
-        }
-
-        private static bool DocksTo(StreetSegment segment, Intersection intersection)
-        {
-            return Owns(intersection, segment.startConnection.socket)
-                || Owns(intersection, segment.endConnection.socket);
-        }
-
-        private static bool Owns(Intersection intersection, IntersectionSocket socket)
-        {
-            return socket != null && socket.Owner == intersection;
-        }
-
-        /// <summary>
-        /// Copies everything that says how a street is built from its tile. The width is not among
-        /// them - it comes from the socket, which is the side the seam has to line up with.
-        /// </summary>
-        private static void CopyTile(StreetSegment template, StreetSegment segment)
-        {
-            if (template == null)
-            {
-                return;
-            }
-
-            segment.sourceMesh = template.sourceMesh;
-            segment.forwardAxis = template.forwardAxis;
-            segment.tileLength = template.tileLength;
-            segment.generateCollider = template.generateCollider;
-            segment.curvatureWarningRadius = template.curvatureWarningRadius;
-
-            MeshRenderer source = template.GetComponent<MeshRenderer>();
-            MeshRenderer destination = segment.GetComponent<MeshRenderer>();
-            if (source != null && destination != null)
-            {
-                destination.sharedMaterials = source.sharedMaterials;
-            }
         }
     }
 }

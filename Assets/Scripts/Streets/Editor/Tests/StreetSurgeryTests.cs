@@ -27,10 +27,22 @@ namespace CargoKing.Streets.Editor.Tests
         {
             StreetSegment a = StreetTestFactory.Create("A", Vector3.zero, new Vector3(0f, 0f, 10f));
             StreetSegment b = StreetTestFactory.Create("B", Vector3.zero, new Vector3(0f, 0f, 10f));
-            b.roadWidth = 7f;
+            b.profile = StreetTestFactory.Profile(7f);
 
             Assert.IsFalse(StreetSurgery.CanMerge(b, a, out string problem));
             StringAssert.Contains("wide", problem);
+        }
+
+        [Test]
+        public void CanMerge_RefusesDifferentProfilesOfTheSameWidth()
+        {
+            // Same width, different class of road: merging would silently drop one speed limit.
+            StreetSegment a = StreetTestFactory.Create("A", Vector3.zero, new Vector3(0f, 0f, 10f));
+            StreetSegment b = StreetTestFactory.Create("B", Vector3.zero, new Vector3(0f, 0f, 10f));
+            b.profile = StreetTestFactory.Profile(16f);
+
+            Assert.IsFalse(StreetSurgery.CanMerge(b, a, out string problem));
+            StringAssert.Contains("profile", problem);
         }
 
         [Test]
@@ -211,7 +223,7 @@ namespace CargoKing.Streets.Editor.Tests
             StreetSegment target = StreetTestFactory.Create("T", Vector3.zero, new Vector3(0f, 0f, 10f));
             StreetSegment dragged = StreetTestFactory.Create(
                 "D", new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 30f));
-            dragged.roadWidth = 7f;
+            dragged.profile = StreetTestFactory.Profile(7f);
 
             Assert.IsNull(StreetSurgery.Merge(dragged, StreetEnd.Start, target, StreetEnd.End));
             Assert.IsFalse(dragged == null, "A refused merge must not destroy anything.");
@@ -298,6 +310,20 @@ namespace CargoKing.Streets.Editor.Tests
             Assert.IsNull(segment.endConnection.socket);
 
             Object.DestroyImmediate(socketObject);
+        }
+
+        [Test]
+        public void Split_GivesBothHalvesTheSameProfile()
+        {
+            StreetSegment segment = StreetTestFactory.Create(
+                "S", Vector3.zero, new Vector3(0f, 0f, 20f), new Vector3(0f, 0f, 40f));
+            StreetProfile profile = StreetTestFactory.Profile(12f);
+            segment.profile = profile;
+
+            StreetSegment second = StreetSurgery.Split(segment, 1);
+
+            Assert.That(segment.profile, Is.SameAs(profile));
+            Assert.That(second.profile, Is.SameAs(profile));
         }
 
         [Test]
