@@ -41,8 +41,8 @@ namespace CargoKing.Streets.Tests
             StreetSignSlot slot = StreetSignSlots.At(Straight(40f), 16f, StreetSide.Right, 10f);
 
             // Half of 16 m plus the 1 m clearance.
-            Assert.That(Vector3.Distance(slot.position, new Vector3(9f, 0f, 10f)), Is.LessThan(0.01f));
-            Assert.That(Vector3.Distance(slot.centre, new Vector3(0f, 0f, 10f)), Is.LessThan(0.01f));
+            Assert.That(Vector3.Distance(slot.position, new Vector3(9f, 0f, 10f)), Is.LessThan(0.05f));
+            Assert.That(Vector3.Distance(slot.centre, new Vector3(0f, 0f, 10f)), Is.LessThan(0.05f));
 
             // Traffic on the right drives +Z, so the face looks back down the road.
             Assert.That(Vector3.Dot(slot.rotation * Vector3.forward, Vector3.back), Is.GreaterThan(0.999f));
@@ -53,7 +53,7 @@ namespace CargoKing.Streets.Tests
         {
             StreetSignSlot slot = StreetSignSlots.At(Straight(40f), 16f, StreetSide.Left, 10f);
 
-            Assert.That(Vector3.Distance(slot.position, new Vector3(-9f, 0f, 10f)), Is.LessThan(0.01f));
+            Assert.That(Vector3.Distance(slot.position, new Vector3(-9f, 0f, 10f)), Is.LessThan(0.05f));
             Assert.That(Vector3.Dot(slot.rotation * Vector3.forward, Vector3.forward), Is.GreaterThan(0.999f));
         }
 

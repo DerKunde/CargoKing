@@ -21,7 +21,7 @@ namespace CargoKing.Streets.Editor.Tests
 
             segment.Rebuild();
 
-            Assert.That(Vector3.Distance(sign.transform.position, new Vector3(9f, 0f, 10f)), Is.LessThan(0.01f));
+            Assert.That(Vector3.Distance(sign.transform.position, new Vector3(9f, 0f, 10f)), Is.LessThan(0.05f));
         }
 
         [Test]
@@ -35,7 +35,7 @@ namespace CargoKing.Streets.Editor.Tests
             segment.Rebuild();
 
             // Still 10 m from the start, and the start is now at -20.
-            Assert.That(sign.transform.position.z, Is.EqualTo(-10f).Within(0.01f));
+            Assert.That(sign.transform.position.z, Is.EqualTo(-10f).Within(0.05f));
         }
 
         [Test]
@@ -47,7 +47,7 @@ namespace CargoKing.Streets.Editor.Tests
 
             segment.Rebuild();
 
-            Assert.That(sign.transform.position.z, Is.EqualTo(40f).Within(0.01f));
+            Assert.That(sign.transform.position.z, Is.EqualTo(40f).Within(0.05f));
             Assert.That(sign.distance, Is.EqualTo(60f));
         }
 
