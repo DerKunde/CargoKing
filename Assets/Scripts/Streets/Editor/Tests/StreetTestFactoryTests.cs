@@ -1,6 +1,9 @@
 using NUnit.Framework;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using UnityEngine.TestTools;
 
 namespace CargoKing.Streets.Editor.Tests
 {
@@ -13,23 +16,41 @@ namespace CargoKing.Streets.Editor.Tests
         }
 
         [Test]
-        public void RevertingTheUndoHistory_LeavesNoFactorySegmentInTheScene()
+        public void DestroyAll_LeavesNothingForTheTestRunnersUndoToRestore()
         {
-            // The Test Runner reverts every undo step recorded during a run once the run is over.
-            // A merge destroys the dragged segment with an undo record; if the segment's creation had
-            // no record of its own, reverting brought it back into the open scene and left it there.
+            // The Test Runner closes the scene a run took place in and only then reverts the run's
+            // undo history. A merge records the destruction of the dragged segment. If that record
+            // outlived the test, reverting it after the scene was gone failed a native assertion
+            // ('targetScene != nullptr') once per merge - and before the factory recorded creations
+            // as well, the segment even came back in whatever scene was open instead.
+            //
+            // Reproduced here with a scene of our own, closed before the revert just like the
+            // runner's.
             Undo.IncrementCurrentGroup();
-            int group = Undo.GetCurrentGroup();
+            int before = Undo.GetCurrentGroup();
 
-            StreetSegment target = StreetTestFactory.Create("Target", Vector3.zero, new Vector3(0f, 0f, 10f));
-            StreetSegment dragged = StreetTestFactory.Create(
-                "Stray Test Segment", new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 30f));
+            Scene original = SceneManager.GetActiveScene();
+            Scene scratch = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+            SceneManager.SetActiveScene(scratch);
 
-            Assert.That(StreetSurgery.Merge(dragged, StreetEnd.Start, target, StreetEnd.End), Is.Not.Null);
-            StreetTestFactory.DestroyAll();
+            try
+            {
+                StreetSegment target = StreetTestFactory.Create("Target", Vector3.zero, new Vector3(0f, 0f, 10f));
+                StreetSegment dragged = StreetTestFactory.Create(
+                    "Stray Test Segment", new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 30f));
 
-            Undo.RevertAllDownToGroup(group);
+                Assert.That(StreetSurgery.Merge(dragged, StreetEnd.Start, target, StreetEnd.End), Is.Not.Null);
+                StreetTestFactory.DestroyAll();
+            }
+            finally
+            {
+                SceneManager.SetActiveScene(original);
+                EditorSceneManager.CloseScene(scratch, true);
+            }
 
+            Undo.RevertAllDownToGroup(before);
+
+            LogAssert.NoUnexpectedReceived();
             Assert.That(GameObject.Find("Stray Test Segment"), Is.Null);
             Assert.That(GameObject.Find("Target"), Is.Null);
         }

@@ -11,12 +11,19 @@ namespace CargoKing.Streets.Editor.Tests
     ///
     /// Every object it hands out is remembered, because a leaked StreetSegment keeps its subscription
     /// to the static Spline.Changed event and would go on reacting to splines in later tests.
+    ///
+    /// It also owns the undo history a test leaves behind. The street tools record their work through
+    /// Undo, and the Test Runner reverts everything recorded during a run - but only after it has
+    /// closed the scene the tests ran in. Any step that brings an object back then has nowhere to put
+    /// it. So the factory opens an undo group with the first segment of a test and
+    /// <see cref="DestroyAll"/> reverts it while that scene still exists.
     /// </summary>
     internal static class StreetTestFactory
     {
         private static readonly List<GameObject> created = new List<GameObject>();
         private static readonly List<Object> createdAssets = new List<Object>();
         private static StreetProfile sharedProfile;
+        private static int undoGroup = -1;
 
         /// <summary>
         /// The profile every factory segment starts with: 16 m, no tile. Shared, so two factory
@@ -50,13 +57,17 @@ namespace CargoKing.Streets.Editor.Tests
         /// </summary>
         public static StreetSegment Create(string name, params Vector3[] localKnots)
         {
+            if (undoGroup < 0)
+            {
+                Undo.IncrementCurrentGroup();
+                undoGroup = Undo.GetCurrentGroup();
+            }
+
             GameObject gameObject = new GameObject(name);
             created.Add(gameObject);
 
-            // Recorded as an undo step on purpose. The Test Runner reverts every undo step of a run
-            // when the run ends. Street tools destroy segments through Undo, and without a matching
-            // record of the creation, reverting that destruction put the segment back into the open
-            // scene - where it stayed. With the creation recorded, the revert takes it away again.
+            // Recorded so that reverting the test's undo group takes the segment away again, even
+            // after a street tool destroyed it through Undo and the revert brought it back first.
             Undo.RegisterCreatedObjectUndo(gameObject, "Create Test Street");
 
             SplineContainer container = gameObject.AddComponent<SplineContainer>();
@@ -78,6 +89,14 @@ namespace CargoKing.Streets.Editor.Tests
 
         public static void DestroyAll()
         {
+            // First, while the test's scene is still there: everything the test recorded through
+            // Undo is taken back, so the Test Runner finds nothing of it left to revert later.
+            if (undoGroup >= 0)
+            {
+                Undo.RevertAllDownToGroup(undoGroup);
+                undoGroup = -1;
+            }
+
             for (int index = 0; index < created.Count; index++)
             {
                 if (created[index] != null)
