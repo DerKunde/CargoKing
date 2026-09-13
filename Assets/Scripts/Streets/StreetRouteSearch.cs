@@ -82,8 +82,9 @@ namespace CargoKing.Streets
 
             float fastest = FastestSpeed(asset);
 
-            float remaining = Mathf.Max(lanes[fromLane].length - fromDistance, 0f);
-            best[fromLane] = TravelTime(lanes[fromLane], remaining);
+            // Only the part still ahead, at the limits posted along it.
+            best[fromLane] = StreetLaneGeometry.TravelTime(asset.Samples, lanes[fromLane], fromDistance)
+                + TurnPenalty(lanes[fromLane].turn);
             estimated[fromLane] = best[fromLane] + Heuristic(asset, fromLane, toLane, fastest);
             open.Add(fromLane);
 
@@ -109,7 +110,7 @@ namespace CargoKing.Streets
                         continue;
                     }
 
-                    float cost = best[current] + TravelTime(lanes[next], lanes[next].length);
+                    float cost = best[current] + TravelTime(lanes[next]);
 
                     if (best.TryGetValue(next, out float known) && known <= cost)
                     {
@@ -130,11 +131,10 @@ namespace CargoKing.Streets
             return false;
         }
 
-        /// <summary>Seconds to cover that much of the lane, turn included.</summary>
-        private static float TravelTime(in StreetNetworkLane lane, float distance)
+        /// <summary>Seconds to drive a whole lane at its posted limits, turn included.</summary>
+        private static float TravelTime(in StreetNetworkLane lane)
         {
-            float speed = Mathf.Max(lane.speedLimit, StreetProfile.MinimumSpeedLimit);
-            return distance / speed + TurnPenalty(lane.turn);
+            return lane.travelTime + TurnPenalty(lane.turn);
         }
 
         /// <summary>

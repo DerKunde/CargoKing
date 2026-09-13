@@ -117,7 +117,44 @@ namespace CargoKing.Streets
                 // Not interpolated: a radius runs to infinity on a straight, and lerping towards
                 // infinity produces nonsense. The tighter of the two is the safe answer for a speed.
                 radius = Mathf.Min(from.radius, to.radius),
+
+                // The limit of the sample at or before this distance. A limit is a step: it changes at
+                // a sign, and blending it would slow a car down before it reaches one.
+                speedLimit = from.speedLimit,
             };
+        }
+
+        /// <summary>
+        /// Seconds from a distance along the lane to its end at the posted limits. Each stretch between
+        /// two samples is driven at the limit of the sample it starts from.
+        /// </summary>
+        public static float TravelTime(
+            StreetNetworkSample[] samples,
+            in StreetNetworkLane lane,
+            float fromDistance)
+        {
+            if (samples == null || lane.sampleCount < 2)
+            {
+                return 0f;
+            }
+
+            float time = 0f;
+
+            for (int index = 0; index < lane.sampleCount - 1; index++)
+            {
+                StreetNetworkSample from = samples[lane.firstSample + index];
+                StreetNetworkSample to = samples[lane.firstSample + index + 1];
+
+                float start = Mathf.Max(from.distance, fromDistance);
+                if (to.distance <= start)
+                {
+                    continue;
+                }
+
+                time += (to.distance - start) / Mathf.Max(from.speedLimit, StreetProfile.MinimumSpeedLimit);
+            }
+
+            return time;
         }
 
         /// <summary>Index of the last sample at or before that distance. Binary search - a long lane

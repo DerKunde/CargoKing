@@ -23,6 +23,12 @@ namespace CargoKing.Streets
 
         /// <summary>Curve radius of this lane here in metres, or infinity where it runs straight.</summary>
         public float radius;
+
+        /// <summary>
+        /// Speed limit in force from this sample on, in metres per second. A step, not a gradient: it
+        /// holds until the next sample and is never interpolated, because a limit changes at a sign.
+        /// </summary>
+        public float speedLimit;
     }
 
     /// <summary>
@@ -40,8 +46,15 @@ namespace CargoKing.Streets
         /// <summary>Length in metres, measured along this lane rather than along a centre line.</summary>
         public float length;
 
-        /// <summary>Speed limit in metres per second.</summary>
+        /// <summary>
+        /// Highest speed limit anywhere on this lane, in metres per second. The route search divides by
+        /// the fastest limit on the map for its estimate, so this must never be lower than any limit on
+        /// the lane. The limit at a given place is on the samples.
+        /// </summary>
         public float speedLimit;
+
+        /// <summary>Seconds to drive the whole lane at its posted limits. No turn penalty included.</summary>
+        public float travelTime;
 
         /// <summary>Index of the intersection this lane crosses, or -1 when it is an ordinary road lane.</summary>
         public int intersection;

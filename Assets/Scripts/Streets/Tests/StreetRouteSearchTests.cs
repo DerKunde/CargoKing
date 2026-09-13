@@ -43,6 +43,15 @@ namespace CargoKing.Streets.Tests
                 Lane(8, 100f, 20f, firstExit: 4, exitCount: 0),
             };
 
+            // The start lane is charged from its samples, so they carry the lane's limit as well.
+            for (int lane = 0; lane < lanes.Length; lane++)
+            {
+                for (int sample = 0; sample < lanes[lane].sampleCount; sample++)
+                {
+                    samples[lanes[lane].firstSample + sample].speedLimit = lanes[lane].speedLimit;
+                }
+            }
+
             int[] exits = { 1, 2, 3, 3 };
 
             asset = ScriptableObject.CreateInstance<StreetNetworkAsset>();
@@ -62,6 +71,7 @@ namespace CargoKing.Streets.Tests
                 firstExit = firstExit,
                 exitCount = exitCount,
                 turn = StreetTurn.Straight,
+                travelTime = length / speedLimit,
             };
         }
 
@@ -110,6 +120,70 @@ namespace CargoKing.Streets.Tests
             Assert.That(
                 StreetRouteSearch.TurnPenalty(StreetTurn.Left),
                 Is.GreaterThan(StreetRouteSearch.TurnPenalty(StreetTurn.Right)));
+        }
+
+        [Test]
+        public void TryFind_AvoidsAStreetWithASlowSection()
+        {
+            // Two equally long ways with the same top speed; only the posted limits along them tell
+            // them apart - the first drops to 30 km/h halfway. Every sample sits at the origin so the
+            // estimate says nothing and the limits alone decide.
+            float[] limits = { 14f, 14f, 14f, 14f, 8.33f, 8.33f, 14f, 14f, 14f, 14f, 14f, 14f };
+            StreetNetworkSample[] samples = new StreetNetworkSample[limits.Length];
+
+            for (int index = 0; index < samples.Length; index++)
+            {
+                samples[index] = new StreetNetworkSample
+                {
+                    position = Vector3.zero,
+                    direction = Vector3.right,
+                    distance = (index % 3) * 50f,
+                    radius = float.PositiveInfinity,
+                    speedLimit = limits[index],
+                };
+            }
+
+            StreetNetworkLane[] lanes =
+            {
+                ThreeSampleLane(0, firstExit: 0, exitCount: 2),
+                ThreeSampleLane(3, firstExit: 2, exitCount: 1),
+                ThreeSampleLane(6, firstExit: 3, exitCount: 1),
+                ThreeSampleLane(9, firstExit: 4, exitCount: 0),
+            };
+
+            for (int lane = 0; lane < lanes.Length; lane++)
+            {
+                lanes[lane].travelTime = StreetLaneGeometry.TravelTime(samples, lanes[lane], 0f);
+            }
+
+            StreetNetworkAsset slow = ScriptableObject.CreateInstance<StreetNetworkAsset>();
+            slow.Write(samples, lanes, new[] { 1, 2, 3, 3 }, default, "test");
+
+            try
+            {
+                Assert.That(StreetRouteSearch.TryFind(slow, 0, 0f, 3, route), Is.True);
+                Assert.That(route, Is.EqualTo(new[] { 0, 2, 3 }));
+            }
+            finally
+            {
+                Object.DestroyImmediate(slow);
+            }
+        }
+
+        private static StreetNetworkLane ThreeSampleLane(int firstSample, int firstExit, int exitCount)
+        {
+            return new StreetNetworkLane
+            {
+                firstSample = firstSample,
+                sampleCount = 3,
+                length = 100f,
+                speedLimit = 14f,
+                intersection = -1,
+                pathIndex = -1,
+                firstExit = firstExit,
+                exitCount = exitCount,
+                turn = StreetTurn.Straight,
+            };
         }
     }
 }

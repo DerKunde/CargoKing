@@ -142,5 +142,25 @@ namespace CargoKing.Streets.Editor.Tests
 
             return found;
         }
+
+        [Test]
+        public void Collect_WritesTheLimitOntoEverySampleAndATravelTimeOntoTheLane()
+        {
+            StreetSegment segment = StreetTestFactory.Create("Road", Vector3.zero, new Vector3(50f, 0f, 0f));
+            segment.speedLimitOverrideKmh = 72f;
+            segment.Rebuild();
+
+            StreetNetworkBakeResult result = StreetNetworkBaker.Collect(
+                new[] { segment }, System.Array.Empty<Intersection>());
+
+            StreetNetworkLane lane = result.lanes[0];
+
+            for (int index = 0; index < lane.sampleCount; index++)
+            {
+                Assert.That(result.samples[lane.firstSample + index].speedLimit, Is.EqualTo(20f).Within(0.1f));
+            }
+
+            Assert.That(lane.travelTime, Is.EqualTo(lane.length / 20f).Within(0.01f));
+        }
     }
 }

@@ -78,5 +78,46 @@ namespace CargoKing.Streets.Tests
 
             Assert.That(sample.position.x, Is.EqualTo(100f).Within(0.01f));
         }
+
+        /// <summary>The straight lane, posted at 10 m/s up to 50 m and at 20 m/s from there on.</summary>
+        private static void BuildTwoLimitLane(out StreetNetworkSample[] samples, out StreetNetworkLane lane)
+        {
+            BuildStraightLane(out samples, out lane);
+
+            for (int index = 0; index < samples.Length; index++)
+            {
+                samples[index].speedLimit = index < 5 ? 10f : 20f;
+            }
+        }
+
+        [Test]
+        public void SampleAt_ReturnsTheLimitInForceRatherThanABlend()
+        {
+            // A limit changes at a sign. Blending it between two samples would have a car slow down
+            // for a 30 zone metres before it reaches the sign.
+            BuildTwoLimitLane(out StreetNetworkSample[] samples, out StreetNetworkLane lane);
+
+            Assert.That(StreetLaneGeometry.SampleAt(samples, lane, 45f).speedLimit, Is.EqualTo(10f));
+            Assert.That(StreetLaneGeometry.SampleAt(samples, lane, 50f).speedLimit, Is.EqualTo(20f));
+            Assert.That(StreetLaneGeometry.SampleAt(samples, lane, 55f).speedLimit, Is.EqualTo(20f));
+        }
+
+        [Test]
+        public void TravelTime_DrivesEachStretchAtItsOwnLimit()
+        {
+            BuildTwoLimitLane(out StreetNetworkSample[] samples, out StreetNetworkLane lane);
+
+            // 50 m at 10 m/s plus 50 m at 20 m/s.
+            Assert.That(StreetLaneGeometry.TravelTime(samples, lane, 0f), Is.EqualTo(7.5f).Within(0.001f));
+        }
+
+        [Test]
+        public void TravelTime_FromMidwayChargesOnlyWhatIsLeft()
+        {
+            BuildTwoLimitLane(out StreetNetworkSample[] samples, out StreetNetworkLane lane);
+
+            Assert.That(StreetLaneGeometry.TravelTime(samples, lane, 25f), Is.EqualTo(5f).Within(0.001f));
+            Assert.That(StreetLaneGeometry.TravelTime(samples, lane, 75f), Is.EqualTo(1.25f).Within(0.001f));
+        }
     }
 }

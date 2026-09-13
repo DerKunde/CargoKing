@@ -200,6 +200,7 @@ namespace CargoKing.Streets.Editor
                 exitCount = 0,
                 turn = turn,
                 spawnable = false,
+                travelTime = lane.Length / Mathf.Max(speedLimit, StreetProfile.MinimumSpeedLimit),
             };
 
             for (int index = 0; index < laneSamples.Length; index++)
@@ -212,6 +213,7 @@ namespace CargoKing.Streets.Editor
                     direction = space.TransformDirection(sample.direction).normalized,
                     distance = sample.distance,
                     radius = sample.radius,
+                    speedLimit = speedLimit,
                 });
             }
 
