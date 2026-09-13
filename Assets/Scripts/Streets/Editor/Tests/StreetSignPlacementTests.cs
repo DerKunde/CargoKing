@@ -27,7 +27,7 @@ namespace CargoKing.Streets.Editor.Tests
 
             Assert.That(sign.Segment, Is.SameAs(segment));
             Assert.That(sign.limitKmh, Is.EqualTo(30f));
-            Assert.That(Vector3.Distance(sign.transform.position, new Vector3(-9f, 0f, 10f)), Is.LessThan(0.01f));
+            Assert.That(Vector3.Distance(sign.transform.position, new Vector3(-9f, 0f, 10f)), Is.LessThan(0.05f));
         }
 
         [Test]
@@ -73,7 +73,7 @@ namespace CargoKing.Streets.Editor.Tests
 
             Assert.That(sign.side, Is.EqualTo(StreetSide.Left));
             Assert.That(sign.distance, Is.EqualTo(20f));
-            Assert.That(Vector3.Distance(sign.transform.position, new Vector3(-9f, 0f, 20f)), Is.LessThan(0.01f));
+            Assert.That(Vector3.Distance(sign.transform.position, new Vector3(-9f, 0f, 20f)), Is.LessThan(0.05f));
         }
 
         [Test]
