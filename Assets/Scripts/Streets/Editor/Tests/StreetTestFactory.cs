@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Unity.Mathematics;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.Splines;
 
@@ -51,6 +52,12 @@ namespace CargoKing.Streets.Editor.Tests
         {
             GameObject gameObject = new GameObject(name);
             created.Add(gameObject);
+
+            // Recorded as an undo step on purpose. The Test Runner reverts every undo step of a run
+            // when the run ends. Street tools destroy segments through Undo, and without a matching
+            // record of the creation, reverting that destruction put the segment back into the open
+            // scene - where it stayed. With the creation recorded, the revert takes it away again.
+            Undo.RegisterCreatedObjectUndo(gameObject, "Create Test Street");
 
             SplineContainer container = gameObject.AddComponent<SplineContainer>();
             Spline spline = container.Spline;
