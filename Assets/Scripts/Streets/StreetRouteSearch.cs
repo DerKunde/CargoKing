@@ -134,7 +134,13 @@ namespace CargoKing.Streets
         /// <summary>Seconds to drive a whole lane at its posted limits, turn included.</summary>
         private static float TravelTime(in StreetNetworkLane lane)
         {
-            return lane.travelTime + TurnPenalty(lane.turn);
+            // An asset baked before travel times existed carries zero here, and charged as-is every
+            // lane would be free. Length over the lane's limit is what such an asset was searched by.
+            float time = lane.travelTime > 0f
+                ? lane.travelTime
+                : lane.length / Mathf.Max(lane.speedLimit, StreetProfile.MinimumSpeedLimit);
+
+            return time + TurnPenalty(lane.turn);
         }
 
         /// <summary>

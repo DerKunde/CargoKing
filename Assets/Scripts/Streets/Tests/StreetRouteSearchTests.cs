@@ -170,6 +170,52 @@ namespace CargoKing.Streets.Tests
             }
         }
 
+        [Test]
+        public void TryFind_ChargesLengthOverLimitWhenTheAssetCarriesNoTravelTimes()
+        {
+            // An asset baked before travel times existed has zero on every lane. Charged as-is, every
+            // lane is free and the search takes whichever way it looked at first - here the 20 s one,
+            // listed first on purpose. Every sample sits at the origin so the estimate cannot decide.
+            StreetNetworkSample[] samples = new StreetNetworkSample[8];
+            for (int index = 0; index < samples.Length; index++)
+            {
+                samples[index] = new StreetNetworkSample
+                {
+                    position = Vector3.zero,
+                    direction = Vector3.right,
+                    distance = (index % 2) * 100f,
+                    radius = float.PositiveInfinity,
+                    speedLimit = 20f,
+                };
+            }
+
+            StreetNetworkLane[] lanes =
+            {
+                Lane(0, 100f, 20f, firstExit: 0, exitCount: 2),
+                Lane(2, 100f, 5f, firstExit: 2, exitCount: 1),
+                Lane(4, 100f, 30f, firstExit: 3, exitCount: 1),
+                Lane(6, 100f, 20f, firstExit: 4, exitCount: 0),
+            };
+
+            for (int lane = 0; lane < lanes.Length; lane++)
+            {
+                lanes[lane].travelTime = 0f;
+            }
+
+            StreetNetworkAsset stale = ScriptableObject.CreateInstance<StreetNetworkAsset>();
+            stale.Write(samples, lanes, new[] { 1, 2, 3, 3 }, default, "test");
+
+            try
+            {
+                Assert.That(StreetRouteSearch.TryFind(stale, 0, 0f, 3, route), Is.True);
+                Assert.That(route, Is.EqualTo(new[] { 0, 2, 3 }));
+            }
+            finally
+            {
+                Object.DestroyImmediate(stale);
+            }
+        }
+
         private static StreetNetworkLane ThreeSampleLane(int firstSample, int firstExit, int exitCount)
         {
             return new StreetNetworkLane
