@@ -162,5 +162,65 @@ namespace CargoKing.Streets.Editor.Tests
 
             Assert.That(lane.travelTime, Is.EqualTo(lane.length / 20f).Within(0.01f));
         }
+
+        private const float Thirty = 30f / 3.6f;
+        private const float Fifty = 50f / 3.6f;
+
+        private static float LimitAt(StreetNetworkBakeResult result, int lane, float distance)
+        {
+            return StreetLaneGeometry.SampleAt(result.samples.ToArray(), result.lanes[lane], distance).speedLimit;
+        }
+
+        [Test]
+        public void Collect_ChangesTheLimitWhereASignStands()
+        {
+            StreetSegment segment = StreetTestFactory.Create("Road", Vector3.zero, new Vector3(100f, 0f, 0f));
+            StreetTestFactory.Sign(segment, StreetSide.Right, 50f, 30f);
+            segment.Rebuild();
+
+            StreetNetworkBakeResult result = StreetNetworkBaker.Collect(
+                new[] { segment }, System.Array.Empty<Intersection>());
+
+            Assert.That(LimitAt(result, 0, 25f), Is.EqualTo(Fifty).Within(0.01f));
+            Assert.That(LimitAt(result, 0, 75f), Is.EqualTo(Thirty).Within(0.01f));
+        }
+
+        [Test]
+        public void Collect_ASignOnTheLeftGovernsTheBackwardLane()
+        {
+            StreetSegment segment = StreetTestFactory.Create("Road", Vector3.zero, new Vector3(100f, 0f, 0f));
+            StreetTestFactory.Sign(segment, StreetSide.Left, 50f, 30f);
+            segment.Rebuild();
+
+            StreetNetworkBakeResult result = StreetNetworkBaker.Collect(
+                new[] { segment }, System.Array.Empty<Intersection>());
+
+            Assert.That(LimitAt(result, 0, 75f), Is.EqualTo(Fifty).Within(0.01f));
+
+            // The backward lane runs from x = 100 to 0, so it passes the sign halfway and is 30 after it.
+            Assert.That(LimitAt(result, 1, 25f), Is.EqualTo(Fifty).Within(0.01f));
+            Assert.That(LimitAt(result, 1, 75f), Is.EqualTo(Thirty).Within(0.01f));
+        }
+
+        [Test]
+        public void Collect_CarriesAZoneIntoADockedStreet()
+        {
+            StreetSegment first = StreetTestFactory.Create("First", Vector3.zero, new Vector3(50f, 0f, 0f));
+            StreetSegment second = StreetTestFactory.Create("Second", new Vector3(50f, 0f, 0f), new Vector3(100f, 0f, 0f));
+
+            first.endConnection.segment = second;
+            first.endConnection.segmentEnd = StreetEnd.Start;
+            first.endConnection.driven = false;
+
+            StreetTestFactory.Sign(first, StreetSide.Right, 40f, 30f);
+            first.Rebuild();
+            second.Rebuild();
+
+            StreetNetworkBakeResult result = StreetNetworkBaker.Collect(
+                new[] { first, second }, System.Array.Empty<Intersection>());
+
+            // Lane 2 is the second segment's forward lane.
+            Assert.That(LimitAt(result, 2, 25f), Is.EqualTo(Thirty).Within(0.01f));
+        }
     }
 }

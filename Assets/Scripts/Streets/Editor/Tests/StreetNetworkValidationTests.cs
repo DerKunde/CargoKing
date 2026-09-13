@@ -98,5 +98,27 @@ namespace CargoKing.Streets.Editor.Tests
             Assert.That(passed, Is.True);
             Assert.That(issues, Is.Empty);
         }
+
+        [Test]
+        public void Run_WarnsAboutASignThatDoesNotStandOnAStreet()
+        {
+            GameObject loose = new GameObject("Loose Sign");
+            StreetSpeedSign sign = loose.AddComponent<StreetSpeedSign>();
+
+            try
+            {
+                bool passed = StreetNetworkValidation.Run(
+                    System.Array.Empty<StreetSegment>(), System.Array.Empty<Intersection>(), new[] { sign }, issues);
+
+                Assert.That(passed, Is.True);
+                Assert.That(issues.Count, Is.EqualTo(1));
+                Assert.That(issues[0].severity, Is.EqualTo(StreetNetworkIssueSeverity.Warning));
+                Assert.That(issues[0].target, Is.SameAs(sign));
+            }
+            finally
+            {
+                Object.DestroyImmediate(loose);
+            }
+        }
     }
 }

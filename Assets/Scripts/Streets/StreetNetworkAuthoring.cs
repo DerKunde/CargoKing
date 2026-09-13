@@ -73,5 +73,21 @@ namespace CargoKing.Streets
                 }
             }
         }
+
+        /// <summary>Every speed sign of this network, scoped the same way - including stray ones.</summary>
+        public void CollectSpeedSigns(List<StreetSpeedSign> results)
+        {
+            results.Clear();
+            Scene scene = gameObject.scene;
+
+            StreetSpeedSign[] found = FindObjectsByType<StreetSpeedSign>(FindObjectsSortMode.None);
+            for (int index = 0; index < found.Length; index++)
+            {
+                if (found[index].gameObject.scene == scene)
+                {
+                    results.Add(found[index]);
+                }
+            }
+        }
     }
 }

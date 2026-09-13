@@ -29,8 +29,11 @@ namespace CargoKing.Streets.Editor
     /// </summary>
     public static class StreetNetworkBaker
     {
-        /// <summary>Nominal limit on an intersection path in m/s. High on purpose - the curve binds.</summary>
-        private const float IntersectionSpeedLimit = 25f;
+        /// <summary>
+        /// Limit of an intersection path no street leads into, in m/s (50 km/h). Nothing drives such a
+        /// path; every other path takes the limit in force on the road entering it.
+        /// </summary>
+        private const float UnenteredPathLimit = 13.889f;
 
         /// <summary>Shortest lane ambient traffic may be placed on, in metres.</summary>
         public const float MinimumSpawnLength = 30f;
@@ -66,10 +69,79 @@ namespace CargoKing.Streets.Editor
             LinkSegments(segments, result, laneIndices);
             LinkIntersections(intersections, result, laneIndices, socketExits);
 
+            ApplySpeedZones(segments, result, laneIndices);
+
             StreetPathCrossings.Apply(result);
             MarkSpawnable(result);
 
             return result;
+        }
+
+        /// <summary>
+        /// Turns the signs standing on the segments into a limit per sample. Every lane starts from the
+        /// limit it was emitted with: its segment's, or the fallback of an intersection path.
+        /// </summary>
+        private static void ApplySpeedZones(
+            IReadOnlyList<StreetSegment> segments,
+            StreetNetworkBakeResult result,
+            Dictionary<StreetLane, int> laneIndices)
+        {
+            StreetNetworkSample[] samples = result.samples.ToArray();
+            StreetNetworkLane[] lanes = result.lanes.ToArray();
+
+            float[] defaults = new float[lanes.Length];
+            for (int index = 0; index < lanes.Length; index++)
+            {
+                defaults[index] = lanes[index].speedLimit;
+            }
+
+            List<StreetSpeedSignPlacement> signs = new List<StreetSpeedSignPlacement>();
+
+            for (int index = 0; index < segments.Count; index++)
+            {
+                StreetSegment segment = segments[index];
+                if (segment == null || segment.Lanes.Count < 2)
+                {
+                    continue;
+                }
+
+                Transform transform = segment.transform;
+
+                for (int child = 0; child < transform.childCount; child++)
+                {
+                    StreetSpeedSign sign = transform.GetChild(child).GetComponent<StreetSpeedSign>();
+                    if (sign == null)
+                    {
+                        continue;
+                    }
+
+                    StreetLane lane = segment.Lanes[sign.side == StreetSide.Right ? 0 : 1];
+
+                    if (!laneIndices.TryGetValue(lane, out int laneIndex)
+                        || !segment.TryGetSignSlot(sign.side, sign.distance, out StreetSignSlot slot))
+                    {
+                        continue;
+                    }
+
+                    // Measured along the lane rather than the centre line: in a bend the two differ, and
+                    // the limit has to change beside the sign.
+                    StreetLaneGeometry.ClosestPoint(samples, lanes[laneIndex], slot.centre, out float along);
+
+                    signs.Add(new StreetSpeedSignPlacement
+                    {
+                        lane = laneIndex,
+                        distance = along,
+                        speedLimit = sign.SpeedLimit,
+                    });
+                }
+            }
+
+            samples = StreetSpeedZones.Apply(samples, lanes, result.exits.ToArray(), defaults, signs);
+
+            result.samples.Clear();
+            result.samples.AddRange(samples);
+            result.lanes.Clear();
+            result.lanes.AddRange(lanes);
         }
 
         /// <summary>
@@ -159,14 +231,13 @@ namespace CargoKing.Streets.Editor
                     IntersectionConnection connection = intersection.Connections[path];
                     laneIndices[connection.Lane] = result.lanes.Count;
 
-                    // Speed across an intersection is set by its geometry, not by a limit, so the
-                    // cornering speed decides. The limit here only has to be high enough not to be
-                    // the thing that binds.
+                    // The real limit comes from the road leading in, applied with the speed zones; this
+                    // is only the fallback for a path no road enters.
                     Emit(
                         result,
                         connection.Lane,
                         intersection.transform,
-                        IntersectionSpeedLimit,
+                        UnenteredPathLimit,
                         index,
                         path,
                         connection.Turn,

@@ -20,6 +20,7 @@ namespace CargoKing.Streets.Editor
         private readonly List<StreetNetworkIssue> issues = new List<StreetNetworkIssue>();
         private readonly List<StreetSegment> segments = new List<StreetSegment>();
         private readonly List<Intersection> intersections = new List<Intersection>();
+        private readonly List<StreetSpeedSign> signs = new List<StreetSpeedSign>();
         private readonly List<int> route = new List<int>();
 
         private bool pickingStart;
@@ -71,7 +72,8 @@ namespace CargoKing.Streets.Editor
         {
             authoring.CollectSegments(segments);
             authoring.CollectIntersections(intersections);
-            StreetNetworkValidation.Run(segments, intersections, issues);
+            authoring.CollectSpeedSigns(signs);
+            StreetNetworkValidation.Run(segments, intersections, signs, issues);
 
             if (issues.Count == 0)
             {

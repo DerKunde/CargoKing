@@ -31,6 +31,15 @@ namespace CargoKing.Streets.Editor
         /// <summary>How far two carriageway widths may differ at a seam before it matters, in metres.</summary>
         private const float WidthTolerance = 0.01f;
 
+        /// <summary>Checks a network without speed signs.</summary>
+        public static bool Run(
+            IReadOnlyList<StreetSegment> segments,
+            IReadOnlyList<Intersection> intersections,
+            List<StreetNetworkIssue> issues)
+        {
+            return Run(segments, intersections, System.Array.Empty<StreetSpeedSign>(), issues);
+        }
+
         /// <summary>
         /// Collects everything wrong with the network.
         /// </summary>
@@ -38,6 +47,7 @@ namespace CargoKing.Streets.Editor
         public static bool Run(
             IReadOnlyList<StreetSegment> segments,
             IReadOnlyList<Intersection> intersections,
+            IReadOnlyList<StreetSpeedSign> signs,
             List<StreetNetworkIssue> issues)
         {
             issues.Clear();
@@ -68,6 +78,23 @@ namespace CargoKing.Streets.Editor
                         severity = StreetNetworkIssueSeverity.Warning,
                         message = $"Intersection '{intersection.name}' has no active sockets.",
                         target = intersection,
+                    });
+                }
+            }
+
+            for (int index = 0; index < signs.Count; index++)
+            {
+                StreetSpeedSign sign = signs[index];
+
+                // Only possible by dragging a sign around in the hierarchy by hand. It does no harm; it
+                // simply governs nothing, which is exactly what the author needs to hear.
+                if (sign != null && sign.Segment == null)
+                {
+                    issues.Add(new StreetNetworkIssue
+                    {
+                        severity = StreetNetworkIssueSeverity.Warning,
+                        message = $"Speed sign '{sign.name}' does not stand on a street and has no effect.",
+                        target = sign,
                     });
                 }
             }

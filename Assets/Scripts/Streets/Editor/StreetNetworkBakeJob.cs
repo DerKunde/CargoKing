@@ -18,6 +18,7 @@ namespace CargoKing.Streets.Editor
     {
         private static readonly List<StreetSegment> segments = new List<StreetSegment>();
         private static readonly List<Intersection> intersections = new List<Intersection>();
+        private static readonly List<StreetSpeedSign> signs = new List<StreetSpeedSign>();
         private static readonly List<StreetNetworkIssue> issues = new List<StreetNetworkIssue>();
 
         /// <summary>
@@ -40,8 +41,9 @@ namespace CargoKing.Streets.Editor
 
             authoring.CollectSegments(segments);
             authoring.CollectIntersections(intersections);
+            authoring.CollectSpeedSigns(signs);
 
-            if (!StreetNetworkValidation.Run(segments, intersections, issues))
+            if (!StreetNetworkValidation.Run(segments, intersections, signs, issues))
             {
                 for (int index = 0; index < issues.Count; index++)
                 {
@@ -154,6 +156,7 @@ namespace CargoKing.Streets.Editor
 
                 AppendConnector(builder, segment.startConnection);
                 AppendConnector(builder, segment.endConnection);
+                AppendSigns(builder, segment);
                 builder.Append('\n');
             }
 
@@ -184,6 +187,24 @@ namespace CargoKing.Streets.Editor
             {
                 byte[] digest = md5.ComputeHash(Encoding.UTF8.GetBytes(builder.ToString()));
                 return System.BitConverter.ToString(digest).Replace("-", string.Empty);
+            }
+        }
+
+        private static void AppendSigns(StringBuilder builder, StreetSegment segment)
+        {
+            Transform transform = segment.transform;
+
+            for (int index = 0; index < transform.childCount; index++)
+            {
+                StreetSpeedSign sign = transform.GetChild(index).GetComponent<StreetSpeedSign>();
+                if (sign == null)
+                {
+                    continue;
+                }
+
+                builder.Append("sign|").Append((int)sign.side).Append('|');
+                Append(builder, sign.distance);
+                Append(builder, sign.limitKmh);
             }
         }
 
