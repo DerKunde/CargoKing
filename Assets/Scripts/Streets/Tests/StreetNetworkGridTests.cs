@@ -50,7 +50,7 @@ namespace CargoKing.Streets.Tests
             List<int> found = new List<int>();
             StreetNetworkGrid.Overlapping(grid, new Vector3(50f, 0f, 0f), 5f, found);
 
-            Assert.That(found, Does.Not.Contain(1));
+            Assert.That(found, Has.No.Member(1));
         }
 
         [Test]
