@@ -15,3 +15,4 @@ MonoBehaviour:
   intersections:
   - {fileID: 3999125826963930664, guid: 8fff9648fd59a4a4fa6b2302ddd3c1ec, type: 3}
   - {fileID: 3461634331554244187, guid: 613fd297e6b8b4e43980ec13d52bdbdc, type: 3}
+  defaultProfile: {fileID: 11400000, guid: 0e6025bb393154f4ba15b6a790bf8bb3, type: 2}
