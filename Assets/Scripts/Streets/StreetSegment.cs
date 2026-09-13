@@ -36,6 +36,13 @@ namespace CargoKing.Streets
         [Min(0f)]
         public float roadWidth = 7f;
 
+        [Tooltip("Class of road this segment belongs to. Supplies the speed limit and traffic density.")]
+        public StreetProfile profile;
+
+        [Tooltip("Speed limit for this segment alone, in km/h. 0 takes the profile's limit.")]
+        [Min(0f)]
+        public float speedLimitOverrideKmh;
+
         [Tooltip("Warn below this curve radius in metres. 0 derives it from the width of the carriageway.")]
         [Min(0f)]
         public float curvatureWarningRadius;
@@ -53,6 +60,9 @@ namespace CargoKing.Streets
         /// in an intersection prefab, whose corner geometry is modelled rather than swept.
         /// </summary>
         private const float WarningRadiusPerWidth = 3f;
+
+        /// <summary>Limit a segment falls back to when it has neither a profile nor an override, in m/s (50 km/h).</summary>
+        private const float DefaultSpeedLimit = 13.889f;
 
         /// <summary>How far a driven knot may already be from its target before it is rewritten.</summary>
         private const float PositionEpsilon = 0.0005f;
@@ -73,6 +83,24 @@ namespace CargoKing.Streets
 
         /// <summary>Smallest curve radius along this segment in metres, or infinity when it is straight.</summary>
         public float MinimumRadius => minimumRadius;
+
+        /// <summary>
+        /// Speed limit on this segment in metres per second: the override where one is set, otherwise
+        /// the profile's. A segment without a profile falls back to a default rather than to zero, so
+        /// a half-authored scene still bakes into something driveable.
+        /// </summary>
+        public float SpeedLimit
+        {
+            get
+            {
+                if (speedLimitOverrideKmh > 0f)
+                {
+                    return Mathf.Max(speedLimitOverrideKmh / 3.6f, StreetProfile.MinimumSpeedLimit);
+                }
+
+                return profile != null ? profile.SpeedLimit : DefaultSpeedLimit;
+            }
+        }
 
         /// <summary>Radius below which this segment reports a curve as too tight, in metres.</summary>
         public float WarningRadius =>
