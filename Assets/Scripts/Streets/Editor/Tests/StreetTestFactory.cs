@@ -104,6 +104,33 @@ namespace CargoKing.Streets.Editor.Tests
             return sign;
         }
 
+        /// <summary>An intersection with no sockets yet, at a world position.</summary>
+        public static Intersection Junction(string name, Vector3 position)
+        {
+            GameObject gameObject = new GameObject(name);
+            created.Add(gameObject);
+            gameObject.transform.position = position;
+
+            return gameObject.AddComponent<Intersection>();
+        }
+
+        /// <summary>
+        /// A 16 m socket on an intersection, at a position local to it and facing away along outward.
+        /// The intersection needs a <see cref="Intersection.Rebuild"/> afterwards to see it.
+        /// </summary>
+        public static IntersectionSocket Socket(Intersection intersection, Vector3 localPosition, Vector3 outward)
+        {
+            GameObject gameObject = new GameObject("Socket");
+            gameObject.transform.SetParent(intersection.transform, false);
+            gameObject.transform.localPosition = localPosition;
+            gameObject.transform.localRotation = Quaternion.LookRotation(outward);
+
+            IntersectionSocket socket = gameObject.AddComponent<IntersectionSocket>();
+            socket.roadWidth = 16f;
+
+            return socket;
+        }
+
         public static void DestroyAll()
         {
             // First, while the test's scene is still there: everything the test recorded through

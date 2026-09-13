@@ -222,5 +222,79 @@ namespace CargoKing.Streets.Editor.Tests
             // Lane 2 is the second segment's forward lane.
             Assert.That(LimitAt(result, 2, 25f), Is.EqualTo(Thirty).Within(0.01f));
         }
+
+        private const float Eighty = 80f / 3.6f;
+
+        /// <summary>
+        /// A 70 road with a 30 sign on its last stretch runs from the west into a straight two-arm
+        /// junction; an 80 road leaves it to the east. Placed away from the origin, so a mix-up of local
+        /// and world space cannot hide.
+        ///
+        /// Lanes 0 and 1 are the west road's forward and backward lane, 2 and 3 the east road's; the
+        /// junction's paths come after them.
+        /// </summary>
+        private static StreetNetworkBakeResult BakeJunctionBetweenTwoRoads()
+        {
+            Vector3 offset = new Vector3(200f, 0f, 100f);
+
+            Intersection junction = StreetTestFactory.Junction("Junction", offset);
+            IntersectionSocket west = StreetTestFactory.Socket(junction, new Vector3(-8f, 0f, 0f), Vector3.left);
+            IntersectionSocket east = StreetTestFactory.Socket(junction, new Vector3(8f, 0f, 0f), Vector3.right);
+            junction.Rebuild();
+
+            StreetSegment westRoad = StreetTestFactory.Create("West", new Vector3(-58f, 0f, 0f), new Vector3(-8f, 0f, 0f));
+            westRoad.transform.position = offset;
+            westRoad.speedLimitOverrideKmh = 70f;
+            westRoad.endConnection.socket = west;
+            westRoad.endConnection.driven = false;
+            StreetTestFactory.Sign(westRoad, StreetSide.Right, 30f, 30f);
+
+            StreetSegment eastRoad = StreetTestFactory.Create("East", new Vector3(8f, 0f, 0f), new Vector3(58f, 0f, 0f));
+            eastRoad.transform.position = offset;
+            eastRoad.speedLimitOverrideKmh = 80f;
+            eastRoad.startConnection.socket = east;
+            eastRoad.startConnection.driven = false;
+
+            westRoad.Rebuild();
+            eastRoad.Rebuild();
+
+            return StreetNetworkBaker.Collect(new[] { westRoad, eastRoad }, new[] { junction });
+        }
+
+        /// <summary>The intersection path whose exit is the given lane.</summary>
+        private static int PathInto(StreetNetworkBakeResult result, int lane)
+        {
+            for (int index = 0; index < result.lanes.Count; index++)
+            {
+                if (result.lanes[index].intersection >= 0 && ExitsOf(result, index).Contains(lane))
+                {
+                    return index;
+                }
+            }
+
+            Assert.Fail($"No intersection path leads into lane {lane}.");
+            return -1;
+        }
+
+        [Test]
+        public void Collect_AJunctionPathTakesTheLimitInForceOnTheRoadEnteringIt()
+        {
+            // Not the 50 km/h a path nobody enters falls back to: crossing out of the 30 zone stays at
+            // 30, crossing off the 80 road stays at 80. A driver reads this to decide how fast to take
+            // the junction.
+            StreetNetworkBakeResult result = BakeJunctionBetweenTwoRoads();
+
+            Assert.That(LimitAt(result, PathInto(result, 2), 1f), Is.EqualTo(Thirty).Within(0.01f));
+            Assert.That(LimitAt(result, PathInto(result, 1), 1f), Is.EqualTo(Eighty).Within(0.01f));
+        }
+
+        [Test]
+        public void Collect_AZoneEndsAtAJunction()
+        {
+            StreetNetworkBakeResult result = BakeJunctionBetweenTwoRoads();
+
+            // Lane 2 leaves the junction eastwards: back to its own 80, not the 30 it was entered with.
+            Assert.That(LimitAt(result, 2, 25f), Is.EqualTo(Eighty).Within(0.01f));
+        }
     }
 }
