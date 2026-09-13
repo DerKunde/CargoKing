@@ -25,13 +25,12 @@ namespace CargoKing.Streets.Editor.Tests
             // as well, the segment even came back in whatever scene was open instead.
             //
             // Reproduced here with a scene of our own, closed before the revert just like the
-            // runner's.
+            // runner's. A preview scene rather than an additive one: the scene tests run in is
+            // untitled, and Unity refuses a second new scene next to an unsaved untitled one.
             Undo.IncrementCurrentGroup();
             int before = Undo.GetCurrentGroup();
 
-            Scene original = SceneManager.GetActiveScene();
-            Scene scratch = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
-            SceneManager.SetActiveScene(scratch);
+            Scene scratch = EditorSceneManager.NewPreviewScene();
 
             try
             {
@@ -39,13 +38,15 @@ namespace CargoKing.Streets.Editor.Tests
                 StreetSegment dragged = StreetTestFactory.Create(
                     "Stray Test Segment", new Vector3(0f, 0f, 10f), new Vector3(0f, 0f, 30f));
 
+                SceneManager.MoveGameObjectToScene(target.gameObject, scratch);
+                SceneManager.MoveGameObjectToScene(dragged.gameObject, scratch);
+
                 Assert.That(StreetSurgery.Merge(dragged, StreetEnd.Start, target, StreetEnd.End), Is.Not.Null);
                 StreetTestFactory.DestroyAll();
             }
             finally
             {
-                SceneManager.SetActiveScene(original);
-                EditorSceneManager.CloseScene(scratch, true);
+                EditorSceneManager.ClosePreviewScene(scratch);
             }
 
             Undo.RevertAllDownToGroup(before);
