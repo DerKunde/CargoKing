@@ -50,6 +50,13 @@ namespace CargoKing.Streets.Editor
 
             EditorGUILayout.Space();
             StreetDrawing.DrawInspectorNotice();
+
+            string tileProblem = segment.TileProblem;
+            if (tileProblem != null)
+            {
+                EditorGUILayout.HelpBox(tileProblem, MessageType.Warning);
+            }
+
             DrawTileReadout(segment);
             DrawCurveReadout(segment);
             DrawConnectionReadout(segment);
