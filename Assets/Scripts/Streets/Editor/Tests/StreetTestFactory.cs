@@ -87,6 +87,23 @@ namespace CargoKing.Streets.Editor.Tests
             return segment;
         }
 
+        /// <summary>A speed sign standing on a segment, on the given side and distance.</summary>
+        public static StreetSpeedSign Sign(StreetSegment segment, StreetSide side, float distance, float limitKmh = 30f)
+        {
+            GameObject gameObject = new GameObject($"Speed Sign {limitKmh:0}");
+            created.Add(gameObject);
+            Undo.RegisterCreatedObjectUndo(gameObject, "Create Test Sign");
+
+            gameObject.transform.SetParent(segment.transform, false);
+
+            StreetSpeedSign sign = gameObject.AddComponent<StreetSpeedSign>();
+            sign.side = side;
+            sign.distance = distance;
+            sign.limitKmh = limitKmh;
+
+            return sign;
+        }
+
         public static void DestroyAll()
         {
             // First, while the test's scene is still there: everything the test recorded through

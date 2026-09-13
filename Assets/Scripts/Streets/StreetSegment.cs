@@ -141,6 +141,71 @@ namespace CargoKing.Streets
         /// <summary>World position of the sharpest point on the spline.</summary>
         public Vector3 TightestPoint => transform.TransformPoint(tightestLocalPosition);
 
+        /// <summary>Length of the centre line in metres. 0 without a spline that has two knots.</summary>
+        public float CentreLineLength
+        {
+            get
+            {
+                Spline spline = Spline;
+                return spline != null && spline.Count >= 2 ? spline.GetLength() : 0f;
+            }
+        }
+
+        /// <summary>
+        /// Flags the segment to rebuild on its next tick. For callers that may not rebuild it directly,
+        /// such as a sign's OnValidate.
+        /// </summary>
+        public void MarkDirty()
+        {
+            isDirty = true;
+        }
+
+        /// <summary>The slot for a side and a distance along the centre line, in world space.</summary>
+        /// <returns>False when the segment has no spline to stand beside.</returns>
+        public bool TryGetSignSlot(StreetSide side, float distance, out StreetSignSlot slot)
+        {
+            slot = default;
+
+            Spline spline = Spline;
+            if (spline == null || spline.Count < 2)
+            {
+                return false;
+            }
+
+            StreetSignSlot local = StreetSignSlots.At(spline, RoadWidth, side, distance);
+
+            slot = new StreetSignSlot
+            {
+                position = transform.TransformPoint(local.position),
+                rotation = transform.rotation * local.rotation,
+                centre = transform.TransformPoint(local.centre),
+            };
+
+            return true;
+        }
+
+        /// <summary>
+        /// Where a world point stands relative to this street: side, unsnapped distance along the centre
+        /// line, and whether it lies past an end.
+        /// </summary>
+        /// <returns>Distance from the point to the centre line in metres, or infinity without a spline.</returns>
+        public float LocateSign(Vector3 worldPoint, out StreetSide side, out float distance, out bool beyondEnd)
+        {
+            side = StreetSide.Right;
+            distance = 0f;
+            beyondEnd = false;
+
+            Spline spline = Spline;
+            if (spline == null || spline.Count < 2)
+            {
+                return float.PositiveInfinity;
+            }
+
+            // Local space is metres: every street operation refuses a scaled segment.
+            return StreetSignSlots.Locate(
+                spline, transform.InverseTransformPoint(worldPoint), out side, out distance, out beyondEnd);
+        }
+
         private void OnEnable()
         {
             splineContainer = GetComponent<SplineContainer>();
@@ -443,6 +508,9 @@ namespace CargoKing.Streets
             ApplyConnections();
             MeasureCurve();
 
+            // Before the tile check: a street without a mesh still has a spline to stand signs beside.
+            PlaceSigns();
+
             string problem = TileProblem;
             if (problem != null)
             {
@@ -497,6 +565,39 @@ namespace CargoKing.Streets
             {
                 float3 position = splineContainer.Spline.EvaluatePosition(tightestT);
                 tightestLocalPosition = new Vector3(position.x, position.y, position.z);
+            }
+        }
+
+        /// <summary>
+        /// Moves every sign standing on this street onto its slot. A sign is a child, so its local pose
+        /// is the slot's pose in the spline's space.
+        /// </summary>
+        private void PlaceSigns()
+        {
+            Spline spline = Spline;
+            if (spline == null || spline.Count < 2)
+            {
+                return;
+            }
+
+            for (int index = 0; index < transform.childCount; index++)
+            {
+                StreetSpeedSign sign = transform.GetChild(index).GetComponent<StreetSpeedSign>();
+                if (sign == null)
+                {
+                    continue;
+                }
+
+                StreetSignSlot slot = StreetSignSlots.At(spline, RoadWidth, sign.side, sign.distance);
+                Transform signTransform = sign.transform;
+
+                // Written only when it really differs, like the docked knots, so a rebuild does not
+                // mark the scene as changed every time.
+                if (Vector3.Distance(signTransform.localPosition, slot.position) >= PositionEpsilon
+                    || Quaternion.Angle(signTransform.localRotation, slot.rotation) >= RotationEpsilon)
+                {
+                    signTransform.SetLocalPositionAndRotation(slot.position, slot.rotation);
+                }
             }
         }
 
