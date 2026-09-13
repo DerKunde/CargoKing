@@ -156,6 +156,10 @@ namespace CargoKing.Streets.Editor
             Undo.IncrementCurrentGroup();
             int group = Undo.GetCurrentGroup();
 
+            // Before the cut and before the halves retreat onto their sockets: afterwards the road no
+            // longer runs where the junction stands, and neither half could say where those signs were.
+            StreetSignFiling.Snapshot signs = StreetSignFiling.Capture(segment);
+
             StreetSegment second = StreetSurgery.Split(segment, knotIndex);
             if (second == null)
             {
@@ -208,6 +212,10 @@ namespace CargoKing.Streets.Editor
                 segment, StreetEnd.End, new StreetSnapTarget { socket = entry, position = entry.transform.position });
             StreetSnapping.Connect(
                 second, StreetEnd.Start, new StreetSnapTarget { socket = exit, position = exit.transform.position });
+
+            // Both halves have retreated onto their sockets now. A sign where the junction stands moves
+            // to the nearest slot still on the road.
+            StreetSignFiling.Refile(signs, segment, second);
 
             Selection.activeGameObject = instance;
 

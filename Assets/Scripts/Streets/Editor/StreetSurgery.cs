@@ -97,6 +97,18 @@ namespace CargoKing.Streets.Editor
         /// </summary>
         public static void Reverse(StreetSegment segment)
         {
+            StreetSignFiling.Snapshot signs = StreetSignFiling.Capture(segment);
+
+            ReverseKnots(segment);
+
+            // The road still lies where it did, read the other way: every sign keeps its place, with its
+            // side and distance now counted from the new start.
+            StreetSignFiling.Refile(signs, segment);
+        }
+
+        /// <summary>The knot and connector half of <see cref="Reverse"/>, without touching signs.</summary>
+        private static void ReverseKnots(StreetSegment segment)
+        {
             Spline spline = SplineOf(segment);
             if (spline == null || spline.Count < 2)
             {
@@ -173,6 +185,9 @@ namespace CargoKing.Streets.Editor
             Undo.IncrementCurrentGroup();
             int group = Undo.GetCurrentGroup();
 
+            // Taken before either side is turned around; filed once at the end.
+            StreetSignFiling.Snapshot signs = StreetSignFiling.Capture(target, dragged);
+
             SplineContainer targetContainer = target.GetComponent<SplineContainer>();
             SplineContainer draggedContainer = dragged.GetComponent<SplineContainer>();
 
@@ -184,12 +199,12 @@ namespace CargoKing.Streets.Editor
             // Reduced to one case instead of four: the target's end meets the dragged one's start.
             if (targetEnd == StreetEnd.Start)
             {
-                Reverse(target);
+                ReverseKnots(target);
             }
 
             if (draggedEnd == StreetEnd.End)
             {
-                Reverse(dragged);
+                ReverseKnots(dragged);
             }
 
             Spline targetSpline = SplineOf(target);
@@ -237,6 +252,7 @@ namespace CargoKing.Streets.Editor
 
             EditorUtility.SetDirty(target);
             target.Rebuild();
+            StreetSignFiling.Refile(signs, target);
 
             Undo.CollapseUndoOperations(group);
             Undo.SetCurrentGroupName("Merge Streets");
@@ -291,6 +307,8 @@ namespace CargoKing.Streets.Editor
             Undo.IncrementCurrentGroup();
             int group = Undo.GetCurrentGroup();
 
+            StreetSignFiling.Snapshot signs = StreetSignFiling.Capture(segment);
+
             Spline spline = SplineOf(segment);
             SplineContainer container = segment.GetComponent<SplineContainer>();
 
@@ -335,6 +353,9 @@ namespace CargoKing.Streets.Editor
             EditorUtility.SetDirty(segment);
             segment.Rebuild();
             second.Rebuild();
+
+            // Signs beyond the cut stand beside the second half now.
+            StreetSignFiling.Refile(signs, segment, second);
 
             Undo.CollapseUndoOperations(group);
             Undo.SetCurrentGroupName("Split Street");
