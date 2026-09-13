@@ -15,6 +15,13 @@ namespace CargoKing.Streets.Editor
         public StreetEnd segmentEnd;
         public Vector3 position;
 
+        /// <summary>
+        /// Whether nothing else docks here yet: a socket no other segment uses, or a segment end that
+        /// is still open. The nearest search finds taken targets too - validation reports those - but
+        /// only free ones are worth showing as places a street can go.
+        /// </summary>
+        public bool isFree;
+
         public bool IsValid => socket != null || segment != null;
 
         public string Label => socket != null ? socket.name : $"{segment.name} ({segmentEnd})";
@@ -39,23 +46,58 @@ namespace CargoKing.Streets.Editor
         /// <param name="exclude">Segment being dragged, so it cannot dock to itself.</param>
         public static StreetSnapTarget FindNearest(Vector3 position, StreetSegment exclude, float radius)
         {
+            CollectTargets(exclude, nearestBuffer);
+
             StreetSnapTarget best = default;
             float bestDistance = radius;
 
-            IntersectionSocket[] sockets = Object.FindObjectsByType<IntersectionSocket>(FindObjectsSortMode.None);
-            for (int index = 0; index < sockets.Length; index++)
+            // Strictly closer only, in the order CollectTargets lists them: of two targets at the
+            // same distance the socket wins, then the earlier segment - as before the list existed.
+            for (int index = 0; index < nearestBuffer.Count; index++)
             {
-                Vector3 socketPosition = sockets[index].transform.position;
-                float distance = Vector3.Distance(position, socketPosition);
+                float distance = Vector3.Distance(position, nearestBuffer[index].position);
 
                 if (distance < bestDistance)
                 {
                     bestDistance = distance;
-                    best = new StreetSnapTarget { socket = sockets[index], position = socketPosition };
+                    best = nearestBuffer[index];
                 }
             }
 
+            return best;
+        }
+
+        private static readonly System.Collections.Generic.List<StreetSnapTarget> nearestBuffer =
+            new System.Collections.Generic.List<StreetSnapTarget>();
+
+        /// <summary>
+        /// Every place an end of this segment could dock to: every intersection socket, then both ends
+        /// of every other segment. Each is marked free or taken, so the scene view can show where a
+        /// street can go before it is dragged there, and the nearest search reads the same list.
+        /// </summary>
+        /// <param name="exclude">Segment being dragged. Its own ends are left out, and a socket it
+        /// docks to itself still counts as free.</param>
+        public static void CollectTargets(
+            StreetSegment exclude,
+            System.Collections.Generic.List<StreetSnapTarget> results)
+        {
+            results.Clear();
+
             StreetSegment[] segments = Object.FindObjectsByType<StreetSegment>(FindObjectsSortMode.None);
+            IntersectionSocket[] sockets = Object.FindObjectsByType<IntersectionSocket>(FindObjectsSortMode.None);
+
+            for (int index = 0; index < sockets.Length; index++)
+            {
+                IntersectionSocket socket = sockets[index];
+
+                results.Add(new StreetSnapTarget
+                {
+                    socket = socket,
+                    position = socket.transform.position,
+                    isFree = FindSegmentAt(socket, exclude, segments) == null,
+                });
+            }
+
             for (int index = 0; index < segments.Length; index++)
             {
                 StreetSegment segment = segments[index];
@@ -64,30 +106,23 @@ namespace CargoKing.Streets.Editor
                     continue;
                 }
 
-                bestDistance = ConsiderEnd(position, segment, StreetEnd.Start, bestDistance, ref best);
-                bestDistance = ConsiderEnd(position, segment, StreetEnd.End, bestDistance, ref best);
+                AddEnd(results, segment, StreetEnd.Start);
+                AddEnd(results, segment, StreetEnd.End);
             }
-
-            return best;
         }
 
-        private static float ConsiderEnd(
-            Vector3 position,
+        private static void AddEnd(
+            System.Collections.Generic.List<StreetSnapTarget> results,
             StreetSegment segment,
-            StreetEnd end,
-            float bestDistance,
-            ref StreetSnapTarget best)
+            StreetEnd end)
         {
-            Vector3 endPosition = segment.EndPosition(end);
-            float distance = Vector3.Distance(position, endPosition);
-
-            if (distance >= bestDistance)
+            results.Add(new StreetSnapTarget
             {
-                return bestDistance;
-            }
-
-            best = new StreetSnapTarget { segment = segment, segmentEnd = end, position = endPosition };
-            return distance;
+                segment = segment,
+                segmentEnd = end,
+                position = segment.EndPosition(end),
+                isFree = !segment.ConnectorAt(end).IsConnected,
+            });
         }
 
         /// <summary>

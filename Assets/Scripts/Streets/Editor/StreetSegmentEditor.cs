@@ -29,6 +29,7 @@ namespace CargoKing.Streets.Editor
         private const float ContinuationPreview = 12f;
 
         private readonly List<StreetContinuation> continuations = new List<StreetContinuation>();
+        private readonly List<StreetSnapTarget> dockTargets = new List<StreetSnapTarget>();
 
         private bool isDragging;
         private StreetEnd draggedEnd;
@@ -141,6 +142,7 @@ namespace CargoKing.Streets.Editor
             DrawLanes(segment);
             DrawContinuations(segment, StreetEnd.Start);
             DrawContinuations(segment, StreetEnd.End);
+            DrawDockTargets(segment);
 
             DrawEndHandle(segment, StreetEnd.Start);
 
@@ -154,6 +156,50 @@ namespace CargoKing.Streets.Editor
             DrawEndHandle(segment, StreetEnd.End);
 
             StreetKnotHandles.Draw(segment);
+        }
+
+        /// <summary>
+        /// A ring on every free place this segment's ends could dock to - open ends of other streets in
+        /// red, free sockets in green - so the target of a drag can be seen before the drag starts.
+        /// While dragging, the reachable ones grow and the catch radius is drawn around the handle.
+        /// </summary>
+        private void DrawDockTargets(StreetSegment segment)
+        {
+            // Gathered on repaint only. The editor repaints constantly and the gathering scans the
+            // scene; every other event would pay for it without drawing anything.
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
+            StreetSnapping.CollectTargets(segment, dockTargets);
+
+            for (int index = 0; index < dockTargets.Count; index++)
+            {
+                StreetSnapTarget target = dockTargets[index];
+                if (!target.isFree)
+                {
+                    continue;
+                }
+
+                bool reachable = isDragging
+                    && Vector3.Distance(dragPosition, target.position) < StreetSnapping.SnapRadius;
+
+                float size = HandleUtility.GetHandleSize(target.position);
+
+                Handles.color = target.socket != null ? ConnectedColor : OpenColor;
+                Handles.DrawWireDisc(
+                    target.position,
+                    Vector3.up,
+                    size * (reachable ? 0.4f : 0.2f),
+                    reachable ? 4f : 2f);
+            }
+
+            if (isDragging)
+            {
+                Handles.color = new Color(1f, 1f, 1f, 0.35f);
+                Handles.DrawWireDisc(dragPosition, Vector3.up, StreetSnapping.SnapRadius);
+            }
         }
 
         private void DrawEndHandle(StreetSegment segment, StreetEnd end)
