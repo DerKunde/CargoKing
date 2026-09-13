@@ -25,7 +25,7 @@ namespace CargoKing.Streets.Editor
         /// Goes into every hash. Raised whenever baked data gains a field, so assets baked before read as
         /// stale and the next save bakes them again instead of leaving the new field at zero.
         /// </summary>
-        private const string FormatVersion = "2";
+        private const string FormatVersion = "3";
 
         /// <summary>
         /// Bakes a network into its asset.
