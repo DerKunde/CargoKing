@@ -5,7 +5,7 @@ using UnityEngine;
 namespace CargoKing.Streets.Editor
 {
     /// <summary>
-    /// The list of intersection prefabs the knot menu offers.
+    /// The intersection prefabs the knot menu offers, and the class of road new streets start with.
     ///
     /// Listed rather than scanned. Scanning a folder every time would put every test leftover in the
     /// palette and would keep doing it. The one scan this asset does happens when it is created, as a
@@ -16,6 +16,25 @@ namespace CargoKing.Streets.Editor
     {
         [Tooltip("Intersection prefabs offered when a knot is replaced by a junction.")]
         public List<GameObject> intersections = new List<GameObject>();
+
+        [Tooltip("Class of road every new street starts with, unless it docks next to a street that "
+            + "already has one.")]
+        public StreetProfile defaultProfile;
+
+        /// <summary>
+        /// The default profile of the project's kit, or null when there is no kit or it names none.
+        /// A second kit in the project is reported, not guessed at.
+        /// </summary>
+        public static StreetProfile DefaultProfile()
+        {
+            StreetKit kit = Find(out string problem);
+            if (problem != null)
+            {
+                Debug.LogWarning(problem);
+            }
+
+            return kit != null ? kit.defaultProfile : null;
+        }
 
         /// <summary>Whether an object can serve as a junction: an Intersection on its root.</summary>
         public static bool IsValidEntry(GameObject candidate)
@@ -96,6 +115,20 @@ namespace CargoKing.Streets.Editor
             DrawDefaultInspector();
 
             StreetKit kit = (StreetKit)target;
+
+            if (kit.defaultProfile == null)
+            {
+                EditorGUILayout.HelpBox(
+                    "No default profile. Streets created from a socket or with Add Component get no "
+                    + "profile and show no mesh until one is assigned.",
+                    MessageType.Warning);
+            }
+            else if (kit.defaultProfile.tileMesh == null)
+            {
+                EditorGUILayout.HelpBox(
+                    $"The default profile '{kit.defaultProfile.name}' has no tile mesh.",
+                    MessageType.Warning);
+            }
 
             for (int index = 0; index < kit.intersections.Count; index++)
             {
