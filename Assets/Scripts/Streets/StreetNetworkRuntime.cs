@@ -16,6 +16,7 @@ namespace CargoKing.Streets
 
         private readonly StreetNetworkAsset asset;
         private readonly List<int> candidates = new List<int>();
+        private readonly List<int> exits = new List<int>();
 
         public StreetNetworkRuntime(StreetNetworkAsset asset)
         {
@@ -61,6 +62,132 @@ namespace CargoKing.Streets
             }
 
             return TryProjectOnto(candidates, point, out position);
+        }
+
+        /// <summary>
+        /// Finds the closest place on the network near a place already known, without searching the
+        /// whole map: only the lane itself and the lanes it leads to are considered.
+        ///
+        /// This is what a driver calls every step. It failing is meaningful - it means the vehicle is
+        /// no longer where its route thinks it is, and the driver should fall back to
+        /// <see cref="TryProject"/>.
+        /// </summary>
+        /// <param name="window">How far from the point a lane may be and still count, in metres.</param>
+        public bool TryProjectNear(StreetRoutePosition hint, Vector3 point, float window, out StreetRoutePosition position)
+        {
+            position = StreetRoutePosition.None;
+
+            if (asset == null || asset.IsEmpty || !hint.IsValid || hint.lane >= asset.Lanes.Length)
+            {
+                return false;
+            }
+
+            candidates.Clear();
+            candidates.Add(hint.lane);
+
+            asset.ExitsOf(hint.lane, exits);
+            for (int index = 0; index < exits.Count; index++)
+            {
+                candidates.Add(exits[index]);
+            }
+
+            if (!TryProjectOnto(candidates, point, out StreetRoutePosition found))
+            {
+                return false;
+            }
+
+            StreetNetworkSample sample = StreetLaneGeometry.SampleAt(
+                asset.Samples, asset.Lanes[found.lane], found.distance);
+
+            if (Vector3.Distance(sample.position, point) > window)
+            {
+                return false;
+            }
+
+            position = found;
+            return true;
+        }
+
+        /// <summary>
+        /// Finds a route between two places on the network.
+        /// </summary>
+        /// <param name="route">Filled with the lanes to drive. Cleared first, empty when there is none.</param>
+        public bool TryFindRoute(StreetRoutePosition from, StreetRoutePosition to, List<int> route)
+        {
+            route.Clear();
+
+            if (asset == null || !from.IsValid || !to.IsValid)
+            {
+                return false;
+            }
+
+            return StreetRouteSearch.TryFind(asset, from.lane, from.distance, to.lane, route);
+        }
+
+        /// <summary>
+        /// Reads the route a given distance ahead of where the vehicle is now, carrying on across lane
+        /// boundaries. This is the point the steering aims at and the curve the speed is chosen for.
+        /// </summary>
+        /// <returns>False when the position is not on the route at all. Running past the end of the
+        /// route is not a failure - the last point of the last lane is returned.</returns>
+        public bool TrySampleAhead(
+            IReadOnlyList<int> route,
+            StreetRoutePosition position,
+            float distance,
+            out StreetNetworkSample sample)
+        {
+            sample = default;
+
+            if (asset == null || asset.IsEmpty || route == null || !position.IsValid)
+            {
+                return false;
+            }
+
+            int index = IndexOnRoute(route, position.lane);
+            if (index < 0)
+            {
+                return false;
+            }
+
+            float remaining = distance;
+            float along = position.distance;
+
+            while (index < route.Count)
+            {
+                int lane = route[index];
+                if (lane < 0 || lane >= asset.Lanes.Length)
+                {
+                    return false;
+                }
+
+                StreetNetworkLane entry = asset.Lanes[lane];
+                float left = entry.length - along;
+
+                if (remaining <= left || index == route.Count - 1)
+                {
+                    sample = StreetLaneGeometry.SampleAt(asset.Samples, entry, along + remaining);
+                    return true;
+                }
+
+                remaining -= left;
+                along = 0f;
+                index++;
+            }
+
+            return false;
+        }
+
+        private static int IndexOnRoute(IReadOnlyList<int> route, int lane)
+        {
+            for (int index = 0; index < route.Count; index++)
+            {
+                if (route[index] == lane)
+                {
+                    return index;
+                }
+            }
+
+            return -1;
         }
 
         private bool TryProjectOnto(List<int> lanes, Vector3 point, out StreetRoutePosition position)
