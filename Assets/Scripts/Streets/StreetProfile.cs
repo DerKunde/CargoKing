@@ -3,12 +3,13 @@ using UnityEngine;
 namespace CargoKing.Streets
 {
     /// <summary>
-    /// A class of road: how fast traffic may travel on it and how densely it is populated.
+    /// A class of road: what it is built from, how wide it is, how fast traffic may travel on it and
+    /// how densely it is populated.
     ///
-    /// Width is deliberately not here. It sits on <see cref="StreetSegment"/> and
-    /// <see cref="IntersectionSocket"/>, where it is already authored and where the mesh and the
-    /// sockets both read it; moving it would reshape every existing road the moment a profile were
-    /// assigned.
+    /// Everything that says how a street looks lives here rather than on the segment, so a street never
+    /// needs a mesh or a material assigned by hand, and changing the profile changes every street of
+    /// its class. Width sits with the tile on purpose: the mesh builder does not scale the tile, so a
+    /// width that does not match it produces lanes that miss the carriageway.
     /// </summary>
     [CreateAssetMenu(menuName = "CargoKing/Street Profile", fileName = "StreetProfile")]
     public class StreetProfile : ScriptableObject
@@ -26,7 +27,46 @@ namespace CargoKing.Streets
         [Min(0f)]
         public float trafficDensity = 8f;
 
+        [Header("Look")]
+        [Tooltip("Tile repeated along the street. Needs Read/Write enabled in its import settings.")]
+        public Mesh tileMesh;
+
+        [Tooltip("Local axis of the tile that points along the direction of travel.")]
+        public StreetMeshAxis forwardAxis = StreetMeshAxis.X;
+
+        [Tooltip("Nominal length of one tile in metres. 0 measures it from the mesh itself.")]
+        [Min(0f)]
+        public float tileLength;
+
+        [Tooltip("Material the street is drawn with.")]
+        public Material material;
+
+        [Tooltip("Width of the carriageway in metres - the driveable part, without verges. Must match "
+            + "the tile and every intersection socket this class of road docks to.")]
+        [Min(0f)]
+        public float roadWidth = 16f;
+
+        [System.NonSerialized]
+        private int version;
+
         /// <summary>The limit in metres per second, never zero.</summary>
         public float SpeedLimit => Mathf.Max(speedLimitKmh * KilometresPerHourToMetresPerSecond, MinimumSpeedLimit);
+
+        /// <summary>
+        /// Advances whenever the profile is edited. A segment remembers the number it was built with
+        /// and rebuilds when it moves on, which is how one edit here reaches every street of the class.
+        /// </summary>
+        public int Version => version;
+
+        /// <summary>Tells every segment using this profile to rebuild.</summary>
+        public void MarkChanged()
+        {
+            version++;
+        }
+
+        private void OnValidate()
+        {
+            MarkChanged();
+        }
     }
 }

@@ -28,5 +28,32 @@ namespace CargoKing.Streets.Tests
 
             Object.DestroyImmediate(profile);
         }
+
+        [Test]
+        public void MarkChanged_AdvancesTheVersion()
+        {
+            // Segments compare this number to notice that their profile was edited. Without it a
+            // changed tile or material would only show after the next unrelated rebuild.
+            StreetProfile profile = ScriptableObject.CreateInstance<StreetProfile>();
+            int before = profile.Version;
+
+            profile.MarkChanged();
+
+            Assert.That(profile.Version, Is.Not.EqualTo(before));
+
+            Object.DestroyImmediate(profile);
+        }
+
+        [Test]
+        public void Defaults_DescribeTheProjectsStandardStreet()
+        {
+            StreetProfile profile = ScriptableObject.CreateInstance<StreetProfile>();
+
+            Assert.That(profile.roadWidth, Is.EqualTo(16f));
+            Assert.That(profile.forwardAxis, Is.EqualTo(StreetMeshAxis.X));
+            Assert.That(profile.tileLength, Is.EqualTo(0f));
+
+            Object.DestroyImmediate(profile);
+        }
     }
 }
