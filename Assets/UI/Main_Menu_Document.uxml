@@ -1,0 +1,8 @@
+<UnityEngine.UIElements.UXML editor-extension-mode="False">
+    <UnityEngine.UIElements.VisualElement name="LeftHalf" style="flex-grow: 1; left: 0; width: 40%; height: 100px; background-color: rgb(38, 18, 18); margin-top: 24px; margin-right: 24px; margin-bottom: 24px; margin-left: 24px;">
+        <UnityEngine.UIElements.Label text="Cargo King" style="-unity-text-align: upper-center; -unity-text-outline-color: rgb(229, 229, 229); font-size: 61px; color: rgb(229, 229, 229); margin-top: 13px; margin-bottom: 10px;"/>
+        <UnityEngine.UIElements.Button text="Play" name="Play" style="margin-top: 40px; margin-right: 40px; margin-bottom: 40px; margin-left: 40px; padding-top: 13px; padding-right: 13px; padding-bottom: 13px; padding-left: 13px; background-color: rgb(31, 31, 31); color: rgb(229, 229, 229); font-size: 30px;"/>
+        <UnityEngine.UIElements.Button text="Settings" name="Settings" style="margin-top: 40px; margin-right: 40px; margin-bottom: 40px; margin-left: 40px; padding-top: 13px; padding-right: 13px; padding-bottom: 13px; padding-left: 13px; background-color: rgb(31, 31, 31); color: rgb(229, 229, 229); font-size: 30px;"/>
+        <UnityEngine.UIElements.Button text="Exit" name="Exit" style="margin-top: 40px; margin-right: 40px; margin-bottom: 40px; margin-left: 40px; padding-top: 13px; padding-right: 13px; padding-bottom: 13px; padding-left: 13px; background-color: rgb(31, 31, 31); color: rgb(229, 229, 229); font-size: 30px;"/>
+    </UnityEngine.UIElements.VisualElement>
+</UnityEngine.UIElements.UXML>
