@@ -35,6 +35,9 @@ namespace CargoKing.Streets.Editor
         private StreetEnd draggedEnd;
         private Vector3 dragPosition;
 
+        /// <summary>Static so the mode survives switching between streets while signs are being placed.</summary>
+        private static bool placingSigns;
+
         // The readouts track the spline while it is being dragged, so they have to repaint on their own.
         public override bool RequiresConstantRepaint() => true;
 
@@ -61,6 +64,7 @@ namespace CargoKing.Streets.Editor
             DrawTileReadout(segment);
             DrawCurveReadout(segment);
             DrawConnectionReadout(segment);
+            DrawSignPlacement();
         }
 
         private static void DrawTileReadout(StreetSegment segment)
@@ -127,6 +131,26 @@ namespace CargoKing.Streets.Editor
             }
         }
 
+        private static void DrawSignPlacement()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Speed signs", EditorStyles.boldLabel);
+
+            placingSigns = GUILayout.Toggle(placingSigns, "Place Speed Signs", "Button");
+            if (!placingSigns)
+            {
+                return;
+            }
+
+            StreetSignPlacement.LastLimitKmh =
+                EditorGUILayout.FloatField("Limit (km/h)", StreetSignPlacement.LastLimitKmh);
+
+            EditorGUILayout.HelpBox(
+                "Click a dot beside the road to put a sign there. Blue dots govern the forward lane, "
+                + "orange ones the backward lane.",
+                MessageType.None);
+        }
+
         private void OnSceneGUI()
         {
             if (!StreetDrawing.Enabled)
@@ -156,6 +180,11 @@ namespace CargoKing.Streets.Editor
             DrawEndHandle(segment, StreetEnd.End);
 
             StreetKnotHandles.Draw(segment);
+
+            if (placingSigns)
+            {
+                DrawSignSlots(segment);
+            }
         }
 
         /// <summary>
@@ -268,6 +297,37 @@ namespace CargoKing.Streets.Editor
                 Vector3.up,
                 HandleUtility.GetHandleSize(candidate.position) * 0.4f);
             Handles.Label(candidate.position, candidate.Label);
+        }
+
+        /// <summary>A dot on every free slot beside this street, in the colour of the lane it would govern.</summary>
+        private static void DrawSignSlots(StreetSegment segment)
+        {
+            int count = StreetSignSlots.SlotCount(segment.CentreLineLength);
+
+            for (int slot = 0; slot < count; slot++)
+            {
+                float distance = slot * StreetSignSlots.Spacing;
+                DrawSignSlot(segment, StreetSide.Right, distance);
+                DrawSignSlot(segment, StreetSide.Left, distance);
+            }
+        }
+
+        private static void DrawSignSlot(StreetSegment segment, StreetSide side, float distance)
+        {
+            if (!StreetSignPlacement.IsFree(segment, side, distance)
+                || !segment.TryGetSignSlot(side, distance, out StreetSignSlot slot))
+            {
+                return;
+            }
+
+            float size = HandleUtility.GetHandleSize(slot.position) * 0.06f;
+            Handles.color = side == StreetSide.Right ? ForwardLaneColor : BackwardLaneColor;
+
+            if (Handles.Button(slot.position, Quaternion.identity, size, size * 1.5f, Handles.DotHandleCap))
+            {
+                // The street stays selected, so the next sign can be placed straight away.
+                StreetSignPlacement.Create(segment, side, distance, StreetSignPlacement.LastLimitKmh);
+            }
         }
 
         private void DrawContinuations(StreetSegment segment, StreetEnd end)
