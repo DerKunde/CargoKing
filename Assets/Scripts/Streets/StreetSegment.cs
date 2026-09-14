@@ -487,6 +487,33 @@ namespace CargoKing.Streets
             return true;
         }
 
+        /// <summary>Layer a street lives on: picking a goal by mouse raycasts against it alone.</summary>
+        private const string FloorLayer = "Floor";
+
+        /// <summary>
+        /// Puts the street and everything below it, inactive children included, on the Floor layer.
+        /// Written only where it differs, so a rebuild does not mark the scene as changed.
+        /// </summary>
+        private void ApplyFloorLayer()
+        {
+            int floor = LayerMask.NameToLayer(FloorLayer);
+            if (floor < 0)
+            {
+                Debug.LogWarning($"{name}: the project has no '{FloorLayer}' layer, so the street keeps its own.", this);
+                return;
+            }
+
+            Transform[] all = GetComponentsInChildren<Transform>(true);
+            for (int index = 0; index < all.Length; index++)
+            {
+                GameObject target = all[index].gameObject;
+                if (target.layer != floor)
+                {
+                    target.layer = floor;
+                }
+            }
+        }
+
         /// <summary>
         /// Regenerates the mesh from the profile's tile and the spline. Safe to call at any time; the
         /// component calls it by itself whenever something it depends on changed.
@@ -497,6 +524,9 @@ namespace CargoKing.Streets
             isDirty = false;
             builtProfile = profile;
             builtProfileVersion = profile != null ? profile.Version : -1;
+
+            // Before the early returns: a street without a mesh yet still carries children to click on.
+            ApplyFloorLayer();
 
             if (splineContainer == null || meshFilter == null)
             {
