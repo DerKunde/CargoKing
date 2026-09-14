@@ -71,6 +71,17 @@ namespace CargoKing.Streets.Tests
         }
 
         [Test]
+        public void TryFindRoute_HonoursWhereOnTheGoalLaneTheGoalLies()
+        {
+            // Lane 1 is a dead end. With the goal behind the start on it, there is no way there - a
+            // runtime that dropped the goal's distance would report "already there" instead.
+            StreetRoutePosition from = new StreetRoutePosition { lane = 1, distance = 60f };
+            StreetRoutePosition to = new StreetRoutePosition { lane = 1, distance = 20f };
+
+            Assert.That(runtime.TryFindRoute(from, to, route), Is.False);
+        }
+
+        [Test]
         public void TrySampleAhead_StaysOnTheCurrentLaneWhenItIsLongEnough()
         {
             route.Clear();

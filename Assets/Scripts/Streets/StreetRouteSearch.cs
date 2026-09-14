@@ -41,19 +41,23 @@ namespace CargoKing.Streets
         }
 
         /// <summary>
-        /// Finds a route from a place on one lane to another lane.
+        /// Finds a route from a place on one lane to a place on another.
         /// </summary>
         /// <param name="fromDistance">How far along the starting lane the vehicle already is; only the
         /// remainder of that lane is charged.</param>
         /// <param name="route">Filled with the lanes to drive, starting lane first. Cleared first, and
-        /// left empty when there is no route.</param>
+        /// left empty when there is no route. When the goal lies behind the vehicle on its own lane the
+        /// route leaves that lane and comes back to it, so it holds that lane twice.</param>
+        /// <param name="toDistance">How far along the goal lane the goal lies. Left out, anywhere on the
+        /// goal lane will do.</param>
         /// <returns>False when either lane index is out of range or no route exists.</returns>
         public static bool TryFind(
             StreetNetworkAsset asset,
             int fromLane,
             float fromDistance,
             int toLane,
-            List<int> route)
+            List<int> route,
+            float toDistance = float.PositiveInfinity)
         {
             route.Clear();
 
@@ -69,7 +73,10 @@ namespace CargoKing.Streets
                 return false;
             }
 
-            if (fromLane == toLane)
+            // Behind the vehicle on its own lane: it has to leave the lane and come back round to it.
+            bool comeRound = fromLane == toLane && toDistance < fromDistance;
+
+            if (fromLane == toLane && !comeRound)
             {
                 route.Add(fromLane);
                 return true;
@@ -83,10 +90,27 @@ namespace CargoKing.Streets
             float fastest = FastestSpeed(asset);
 
             // Only the part still ahead, at the limits posted along it.
-            best[fromLane] = StreetLaneGeometry.TravelTime(asset.Samples, lanes[fromLane], fromDistance)
+            float startCost = StreetLaneGeometry.TravelTime(asset.Samples, lanes[fromLane], fromDistance)
                 + TurnPenalty(lanes[fromLane].turn);
-            estimated[fromLane] = best[fromLane] + Heuristic(asset, fromLane, toLane, fastest);
-            open.Add(fromLane);
+
+            if (comeRound)
+            {
+                // The start lane is also the goal, but only once it has been left. Seeding the search
+                // with its exits rather than with the lane itself is what makes arriving back on it
+                // count as arriving.
+                asset.ExitsOf(fromLane, exits);
+
+                for (int index = 0; index < exits.Count; index++)
+                {
+                    Relax(asset, fromLane, exits[index], startCost, toLane, fastest);
+                }
+            }
+            else
+            {
+                best[fromLane] = startCost;
+                estimated[fromLane] = startCost + Heuristic(asset, fromLane, toLane, fastest);
+                open.Add(fromLane);
+            }
 
             int visits = 0;
 
@@ -104,31 +128,37 @@ namespace CargoKing.Streets
 
                 for (int index = 0; index < exits.Count; index++)
                 {
-                    int next = exits[index];
-                    if (next < 0 || next >= lanes.Length)
-                    {
-                        continue;
-                    }
-
-                    float cost = best[current] + TravelTime(lanes[next]);
-
-                    if (best.TryGetValue(next, out float known) && known <= cost)
-                    {
-                        continue;
-                    }
-
-                    best[next] = cost;
-                    cameFrom[next] = current;
-                    estimated[next] = cost + Heuristic(asset, next, toLane, fastest);
-
-                    if (!open.Contains(next))
-                    {
-                        open.Add(next);
-                    }
+                    Relax(asset, current, exits[index], best[current], toLane, fastest);
                 }
             }
 
             return false;
+        }
+
+        /// <summary>Offers the search a way onto one more lane, and keeps it if it is the cheapest yet.</summary>
+        private static void Relax(StreetNetworkAsset asset, int from, int next, float costSoFar, int toLane, float fastest)
+        {
+            StreetNetworkLane[] lanes = asset.Lanes;
+            if (next < 0 || next >= lanes.Length)
+            {
+                return;
+            }
+
+            float cost = costSoFar + TravelTime(lanes[next]);
+
+            if (best.TryGetValue(next, out float known) && known <= cost)
+            {
+                return;
+            }
+
+            best[next] = cost;
+            cameFrom[next] = from;
+            estimated[next] = cost + Heuristic(asset, next, toLane, fastest);
+
+            if (!open.Contains(next))
+            {
+                open.Add(next);
+            }
         }
 
         /// <summary>Seconds to drive a whole lane at its posted limits, turn included.</summary>
@@ -205,15 +235,18 @@ namespace CargoKing.Streets
         private static void Reconstruct(int goal, int start, List<int> route)
         {
             route.Clear();
+            route.Add(goal);
+
+            // Walked at least once before the start is checked, so a route that leaves its start lane
+            // and comes back to it is not taken as having arrived before it set off.
             int current = goal;
-
-            while (current != start)
+            do
             {
-                route.Add(current);
                 current = cameFrom[current];
+                route.Add(current);
             }
+            while (current != start);
 
-            route.Add(start);
             route.Reverse();
         }
     }

@@ -109,7 +109,8 @@ namespace CargoKing.Streets
         }
 
         /// <summary>
-        /// Finds a route between two places on the network.
+        /// Finds a route between two places on the network. A goal behind the start on the same lane is
+        /// reached by coming round to it.
         /// </summary>
         /// <param name="route">Filled with the lanes to drive. Cleared first, empty when there is none.</param>
         public bool TryFindRoute(StreetRoutePosition from, StreetRoutePosition to, List<int> route)
@@ -121,7 +122,7 @@ namespace CargoKing.Streets
                 return false;
             }
 
-            return StreetRouteSearch.TryFind(asset, from.lane, from.distance, to.lane, route);
+            return StreetRouteSearch.TryFind(asset, from.lane, from.distance, to.lane, route, to.distance);
         }
 
         /// <summary>

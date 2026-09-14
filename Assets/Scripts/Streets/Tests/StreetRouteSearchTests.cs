@@ -216,6 +216,60 @@ namespace CargoKing.Streets.Tests
             }
         }
 
+        [Test]
+        public void TryFind_GoalAheadOnTheSameLaneIsJustThatLane()
+        {
+            Assert.That(StreetRouteSearch.TryFind(asset, 3, 10f, 3, route, 50f), Is.True);
+            Assert.That(route, Is.EqualTo(new[] { 3 }));
+        }
+
+        [Test]
+        public void TryFind_GoalBehindOnADeadEndLaneIsUnreachable()
+        {
+            // Lane 3 has no exits: there is no way to leave it and come back.
+            Assert.That(StreetRouteSearch.TryFind(asset, 3, 50f, 3, route, 10f), Is.False);
+            Assert.That(route, Is.Empty);
+        }
+
+        [Test]
+        public void TryFind_GoalBehindOnTheSameLaneComesRound()
+        {
+            // A ring: 0 -> 1 -> 2 -> 0. Starting on lane 0 at 80 m with the goal at 20 m, the only way
+            // there is once round.
+            StreetNetworkSample[] samples = new StreetNetworkSample[6];
+            for (int index = 0; index < samples.Length; index++)
+            {
+                samples[index] = new StreetNetworkSample
+                {
+                    position = new Vector3(index * 50f, 0f, 0f),
+                    direction = Vector3.right,
+                    distance = (index % 2) * 100f,
+                    radius = float.PositiveInfinity,
+                    speedLimit = 20f,
+                };
+            }
+
+            StreetNetworkLane[] lanes =
+            {
+                Lane(0, 100f, 20f, firstExit: 0, exitCount: 1),
+                Lane(2, 100f, 20f, firstExit: 1, exitCount: 1),
+                Lane(4, 100f, 20f, firstExit: 2, exitCount: 1),
+            };
+
+            StreetNetworkAsset ring = ScriptableObject.CreateInstance<StreetNetworkAsset>();
+            ring.Write(samples, lanes, new[] { 1, 2, 0 }, default, "test");
+
+            try
+            {
+                Assert.That(StreetRouteSearch.TryFind(ring, 0, 80f, 0, route, 20f), Is.True);
+                Assert.That(route, Is.EqualTo(new[] { 0, 1, 2, 0 }));
+            }
+            finally
+            {
+                Object.DestroyImmediate(ring);
+            }
+        }
+
         private static StreetNetworkLane ThreeSampleLane(int firstSample, int firstExit, int exitCount)
         {
             return new StreetNetworkLane
