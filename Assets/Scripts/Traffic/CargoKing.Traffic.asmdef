@@ -1,0 +1,16 @@
+{
+    "name": "CargoKing.Traffic",
+    "rootNamespace": "CargoKing.Traffic",
+    "references": [
+        "CargoKing.Streets"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
